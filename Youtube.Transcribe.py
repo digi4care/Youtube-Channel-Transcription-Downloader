@@ -1013,7 +1013,7 @@ def download_transcripts_parallel(videos_data, languages, channel_name, download
     
     # Print summary with color
     print(f"\n{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
-    print(f"{Fore.WHITE}DOWNLOAD SUMMARY FOR: {channel_name}{Style.RESET_ALL}")
+    print(f"{Fore.LIGHTBLACK_EX}DOWNLOAD SUMMARY FOR: {channel_name}{Style.RESET_ALL}")
     print(f"{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
     print(f"{Fore.GREEN}✓ Downloaded: {successful}{Style.RESET_ALL}")
     print(f"{Fore.CYAN}↺ Skipped (already exist): {skipped}{Style.RESET_ALL}")
