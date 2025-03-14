@@ -16,6 +16,12 @@ from youtube_transcript_api import YouTubeTranscriptApi, _errors
 # Global variables to track active processes
 active_processes = []
 
+# Ban detection and recovery tracking
+original_delay = None
+original_workers = None
+ban_detected = False
+ban_recovery_time = None
+
 def signal_handler(sig, frame):
     """Handle termination signals properly."""
     print("\nScript termination requested. Cleaning up...")
@@ -28,8 +34,7 @@ def signal_handler(sig, frame):
             pass
     
     print("Cleanup complete. Exiting.")
-    # Use os._exit to force immediate termination
-    os._exit(0)  # This is more forceful than sys.exit()
+    os._exit(0)  # Use os._exit to force immediate termination
 
 # Register signal handlers
 signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
@@ -114,8 +119,13 @@ def display_help():
     print("")
     print("  RECOMMENDED SETTINGS:")
     print("  - Normal usage: Default values (-delay 1.5 -workers 3)")
-    print("  - Large channels: Slower settings (-delay 2 -workers 2)")
-    print("  - If IP banned: Much slower settings (-delay 5 -workers 1) and wait 24 hours")
+    print("  - If IP banned:")
+    print("    1. Switch to very slow settings (-delay 5 -workers 1) until ban is lifted")
+    print("    2. After ban is lifted, continue with these slow settings for 5-7 minutes")
+    print("    3. Then reduce to half your original speed (double delay, halve workers)")
+    print("    4. If banned again, repeat the halving process until bans stop permanently")
+    print("    Example: If original settings were -delay 1 -workers 6, after recovery use")
+    print("             -delay 2 -workers 3, then -delay 4 -workers 2 if banned again")
     
     print("\nFILE ORGANIZATION:")
     print("  Files are organized based on languages detected and requested:")
@@ -137,8 +147,8 @@ def display_help():
     print("  - Use Ctrl+C to properly terminate the script")
     print("  - The script will automatically reorganize files when switching to multiple language mode")
     
-    print("\nURL FILE FORMAT:")
-    print("  The channel URL file can contain URLs in any of these formats:")
+    print("\nFILE FORMAT:")
+    print("  The channel url file can contain URLs in any of these formats:")
     print("  - One URL per line")
     print("  - Comma-separated URLs")
     print("  - Comma with spaces between URLs")
@@ -599,8 +609,60 @@ def controlled_delay(base_delay):
     sleep_time = base_delay + jitter
     time.sleep(sleep_time)
 
+def adjust_rate_for_ban_recovery(current_delay, current_workers):
+    """
+    Adjust rate limiting parameters when a ban is detected or after recovery.
+    Returns new delay and workers count.
+    """
+    global original_delay, original_workers, ban_detected, ban_recovery_time
+    
+    # First time configuration - store original settings
+    if original_delay is None:
+        original_delay = current_delay
+        original_workers = current_workers
+    
+    # If we detect a ban
+    if not ban_detected:
+        ban_detected = True
+        print("\n⚠️ YouTube rate limit/ban detected! Switching to recovery mode...")
+        print(f"Original settings: delay={original_delay}s, workers={original_workers}")
+        print(f"Switching to slow mode: delay=5s, workers=1")
+        return 5.0, 1  # Very slow settings during ban
+    
+    # If ban was already detected and this is called again
+    if ban_recovery_time is None:
+        # First recovery after ban lifted
+        ban_recovery_time = time.time()
+        print("\n✓ Ban appears to be lifted, starting recovery period...")
+        print(f"Continuing slow mode for 5-7 minutes: delay=5s, workers=1")
+        return 5.0, 1  # Keep very slow settings during initial recovery
+    
+    # Check if we're past the recovery period (5-7 minutes)
+    minutes_since_recovery = (time.time() - ban_recovery_time) / 60
+    if minutes_since_recovery < random.uniform(5, 7):
+        # Still in recovery period
+        return 5.0, 1  # Keep very slow settings during recovery period
+    
+    # Past recovery period - calculate half speed from original
+    new_delay = original_delay * 2
+    new_workers = max(1, original_workers // 2)
+    
+    # Update original values for potential future halving
+    original_delay = new_delay
+    original_workers = new_workers
+    
+    # Reset ban tracking for future detections
+    ban_detected = False
+    ban_recovery_time = None
+    
+    print(f"\n✓ Recovery period complete. Switching to half speed:")
+    print(f"New settings: delay={new_delay}s, workers={new_workers}")
+    
+    return new_delay, new_workers
+
 def download_transcript_with_retry(video_id, language, max_retries=3, base_delay=1.5):
     """Download transcript with retries and exponential backoff."""
+    global ban_detected
     retries = 0
     while retries <= max_retries:
         try:
@@ -637,6 +699,9 @@ def download_transcript_with_retry(video_id, language, max_retries=3, base_delay
             # Check for rate limiting indicators
             if "429" in error_str or "too many requests" in error_str or "rate limit" in error_str:
                 print(f"Rate limit detected for {video_id}. Backing off...")
+                # Mark ban as detected for recovery process
+                ban_detected = True
+                
                 if retries < max_retries:
                     retries += 1
                     # Use a longer delay for rate limit errors
@@ -734,6 +799,8 @@ def download_transcript(video_data, language, output_dir, use_language_folders, 
 def download_transcripts_parallel(videos_data, languages, channel_name, download_all=False, 
                                  download_txt=True, download_json=True, delay=1.5, workers=3):
     """Download transcripts for all videos in parallel with rate limiting."""
+    global ban_detected, ban_recovery_time
+    
     # Create channel-specific directory
     output_dir = os.path.join("transcripts", channel_name)
     if not os.path.exists(output_dir):
@@ -790,12 +857,31 @@ def download_transcripts_parallel(videos_data, languages, channel_name, download
     print(f"Saving to directory: {output_dir}")
     print(f"Processing {len(videos_data)} videos...")
     
-    # Process videos with limited concurrency
-    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
-        # Submit all download tasks for all languages
-        future_to_task = {}
-        for video in videos_data:
-            for lang in languages:
+    # Track remaining tasks for reprocessing
+    remaining_tasks = []
+    for video in videos_data:
+        for lang in languages:
+            remaining_tasks.append((video, lang))
+    
+    # Process while we have remaining tasks and adjusting rate as needed
+    current_delay = delay
+    current_workers = workers
+    
+    while remaining_tasks:
+        # Check if we need to adjust rate limiting due to bans
+        if ban_detected:
+            current_delay, current_workers = adjust_rate_for_ban_recovery(current_delay, current_workers)
+            print(f"Adjusted rate limiting: {current_delay}s delay with {current_workers} workers")
+        
+        # Take a subset of tasks based on current worker count
+        batch_size = min(len(remaining_tasks), 100)  # Process in batches of 100 or fewer
+        current_batch = remaining_tasks[:batch_size]
+        
+        # Process videos with limited concurrency
+        with concurrent.futures.ThreadPoolExecutor(max_workers=current_workers) as executor:
+            # Submit tasks for current batch
+            future_to_task = {}
+            for video, lang in current_batch:
                 future = executor.submit(
                     download_transcript, 
                     video, 
@@ -804,38 +890,51 @@ def download_transcripts_parallel(videos_data, languages, channel_name, download
                     use_language_folders, 
                     download_txt, 
                     download_json,
-                    delay
+                    current_delay
                 )
                 future_to_task[future] = (video, lang)
-        
-        total_tasks = len(future_to_task)
-        print(f"All {total_tasks} tasks queued for processing")
-        print("Processing videos (this may take a while)...")
-        
-        # Process results as they complete
-        for i, future in enumerate(concurrent.futures.as_completed(future_to_task)):
-            video, lang = future_to_task[future]
-            try:
-                result = future.result()
+            
+            print(f"Processing batch of {len(future_to_task)} tasks with {current_workers} workers...")
+            
+            # Process results as they complete
+            completed_tasks = []
+            for i, future in enumerate(concurrent.futures.as_completed(future_to_task)):
+                video, lang = future_to_task[future]
+                completed_tasks.append((video, lang))
                 
-                if result['success']:
-                    if result.get('skipped', False):
-                        print(f"[{i+1}/{total_tasks}] Skipped (already exists): {result['title'][:50]}... ({lang})")
-                        skipped += 1
+                try:
+                    result = future.result()
+                    
+                    if result['success']:
+                        if result.get('skipped', False):
+                            print(f"[{i+1}/{len(future_to_task)}] Skipped (already exists): {result['title'][:50]}... ({lang})")
+                            skipped += 1
+                        else:
+                            print(f"[{i+1}/{len(future_to_task)}] Downloaded: {result['title'][:50]}... ({lang})")
+                            successful += 1
                     else:
-                        print(f"[{i+1}/{total_tasks}] Downloaded: {result['title'][:50]}... ({lang})")
-                        successful += 1
-                else:
-                    print(f"[{i+1}/{total_tasks}] Failed for: {result['title'][:50]}... ({lang}) - {result.get('error', 'Unknown error')}")
+                        print(f"[{i+1}/{len(future_to_task)}] Failed for: {result['title'][:50]}... ({lang}) - {result.get('error', 'Unknown error')}")
+                        failed += 1
+                        
+                    # Show progress every 10 tasks
+                    if (i + 1) % 10 == 0 or i + 1 == len(future_to_task):
+                        print(f"Progress: {i+1}/{len(future_to_task)} tasks processed ({successful} downloaded, {skipped} skipped, {failed} failed)")
+                        
+                except Exception as e:
+                    print(f"[{i+1}/{len(future_to_task)}] Error processing {video['title'][:50]}... ({lang}): {str(e)}")
                     failed += 1
-                    
-                # Show progress every 10 tasks
-                if (i + 1) % 10 == 0 or i + 1 == total_tasks:
-                    print(f"Progress: {i+1}/{total_tasks} tasks processed ({successful} downloaded, {skipped} skipped, {failed} failed)")
-                    
-            except Exception as e:
-                print(f"[{i+1}/{total_tasks}] Error processing {video['title'][:50]}... ({lang}): {str(e)}")
-                failed += 1
+        
+        # Remove completed tasks from remaining
+        for task in completed_tasks:
+            if task in remaining_tasks:
+                remaining_tasks.remove(task)
+        
+        # If we still have tasks but had a ban, we might need to pause
+        if remaining_tasks and ban_detected and ban_recovery_time is None:
+            wait_time = random.uniform(300, 420)  # 5-7 minutes in seconds
+            print(f"\n⚠️ Rate limit detected. Pausing for {wait_time/60:.1f} minutes before continuing...")
+            time.sleep(wait_time)
+            ban_recovery_time = time.time()  # Mark recovery start time
     
     print(f"\nTranscript download complete for {channel_name}.")
     print(f"Downloaded: {successful}")
