@@ -1,5 +1,3 @@
-Here is the improved text for your README.md file:
-
 ---
 
 # YouTube Channel Transcript Downloader
