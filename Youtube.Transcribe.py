@@ -46,16 +46,24 @@ def display_help():
     print("=" * 80)
     print("YouTube Channel Transcript Downloader")
     print("=" * 80)
-    print("\nThis script downloads transcripts for all videos in YouTube channels.")
+    print("\nThis script downloads transcripts for videos on YouTube channels or individual videos.")
     print("It creates a separate folder for each channel and organizes files into subdirectories.")
     print("Downloads are processed with rate limiting to avoid YouTube IP bans.")
     print("Files that already exist will be skipped, allowing you to resume or update channels.")
     
     print("\nUSAGE:")
-    print("  python Youtube.Transcribe.py [options] <channel_url(s)>")
+    print("  python Youtube.Transcribe.py [options] <channel_or_video_url(s)>")
     
     print("\nEXAMPLES:")
-    print("  # Download English transcripts from a single channel")
+    print("  # Download transcript for a single YouTube video")
+    print("  python Youtube.Transcribe.py https://www.youtube.com/watch?v=dQw4w9WgXcQ -en")
+    print("  # Short URL also works")
+    print("  python Youtube.Transcribe.py https://youtu.be/dQw4w9WgXcQ -en")
+    print("  # Multiple URLs also works")
+    print("  Youtube.Transcribe.py https://youtu.be/aDkzgTWhVY4 https://youtu.be/3ZC1iqYfFGU -en")
+    
+    
+    print("  # Download English transcripts from a channel")
     print("  python Youtube.Transcribe.py https://www.youtube.com/channel/UC-lHJZR3Gqxm24_Vd_AJ5Yw -en")
     
     print("  # Download multiple languages")
@@ -129,8 +137,8 @@ def display_help():
     print("  - Use Ctrl+C to properly terminate the script")
     print("  - The script will automatically reorganize files when switching to multiple language mode")
     
-    print("\nFILE FORMAT:")
-    print("  The file can contain channel URLs in any of these formats:")
+    print("\nURL FILE FORMAT:")
+    print("  The channel URL file can contain URLs in any of these formats:")
     print("  - One URL per line")
     print("  - Comma-separated URLs")
     print("  - Comma with spaces between URLs")
@@ -554,6 +562,17 @@ def move_files_to_language_folders(channel_dir, languages):
         print(f"Successfully moved {moved_count} files to language-specific folders")
     else:
         print("No files needed to be moved")
+    
+    # Check if the json directory is empty and remove it if it is
+    json_dir = os.path.join(channel_dir, "json")
+    if os.path.exists(json_dir) and os.path.isdir(json_dir):
+        # Check if it's empty
+        if not os.listdir(json_dir):
+            try:
+                os.rmdir(json_dir)
+                print(f"Removed empty json directory: {json_dir}")
+            except Exception as e:
+                print(f"Error removing empty json directory: {e}")
     
     print("File reorganization complete")
 
