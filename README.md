@@ -10,23 +10,23 @@ USAGE:
   python Youtube.Transcribe.py [options] <channel_url(s)>
 
 EXAMPLES:
-  # Download English transcripts from a single channel
+   Download English transcripts from a single channel
   python Youtube.Transcribe.py https://www.youtube.com/channel/UC-lHJZR3Gqxm24_Vd_AJ5Yw -en
-  # Download multiple languages
+   Download multiple languages
   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -es -fr
-  # Download all available languages
+   Download all available languages
   python Youtube.Transcribe.py https://youtube.com/c/channel1 -all
-  # Download only TXT files (no JSON)
+   Download only TXT files (no JSON)
   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -txt
-  # Download only JSON files (no TXT)
+   Download only JSON files (no TXT)
   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -json
-  # Faster downloads (may increase risk of IP ban)
+   Faster downloads (may increase risk of IP ban)
   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -delay 1 -workers 5
-  # Slower, safer downloads (to prevent IP bans)
+   Slower, safer downloads (to prevent IP bans)
   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -delay 3 -workers 2
-  # Download from multiple channels
+   Download from multiple channels
   python Youtube.Transcribe.py https://youtube.com/c/channel1 https://youtube.com/c/channel2 -en
-  # Download from channels listed in a file (one URL per line or comma-separated)
+   Download from channels listed in a file (one URL per line or comma-separated)
   python Youtube.Transcribe.py -f channels.txt -en
 
 OPTIONS:
