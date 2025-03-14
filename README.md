@@ -103,4 +103,3 @@ REQUIREMENTS:
   - python 3.6+
   - youtube_transcript_api (pip install youtube-transcript-api)
   - yt-dlp (pip install yt-dlp)
-================================================================================
