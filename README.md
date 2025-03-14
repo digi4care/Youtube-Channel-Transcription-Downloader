@@ -1,10 +1,20 @@
-
-
 ---
 
 # YouTube Channel Transcript Downloader
 
-This script downloads transcripts for ALL videos on one or more YouTube channel(s) or individual videos in all available languages. Each channel gets its own organized folders. Downloads are processed with rate limiting to avoid YouTube IP bans. Pre-existing transcripts will be skipped allowing you to resume or update channels.  Many more features and details below more details below.
+This script downloads transcripts for all videos in one or more YouTube channels, or individual videos, in all available languages. It creates organized folders for each channel and manages files into subdirectories. Downloads are processed with rate-limiting to avoid YouTube IP bans, and existing files are skipped, allowing you to resume or update channels efficiently. Key features include:
+
+- Download transcripts for single or multiple videos and channels.
+- Support for downloading transcripts in multiple languages, including all available languages.
+- Options to download only TXT or JSON files.
+- Configurable request delays and concurrency to manage download speed and avoid IP bans.
+- Smart error handling with retries, exponential backoff, and error skipping for non-retryable issues.
+- Organized file structure based on language and channel.
+- Command-line options for flexible usage, including reading URLs from a file.
+
+---
+
+You can now replace the existing summary in your README.md file with this improved version.
 
 ## Usage
 
