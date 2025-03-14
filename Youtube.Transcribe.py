@@ -200,13 +200,34 @@ def display_help():
 def get_system_language():
     """Get the user's system language."""
     try:
-        # Try to get the system locale
-        locale_lang, _ = locale.getdefaultlocale()
-        if locale_lang:
-            # Extract language code (e.g., 'en_US' -> 'en')
-            lang_code = locale_lang.split('_')[0].lower()
+        # Set locale to the user's default
+        locale.setlocale(locale.LC_ALL, '')
+        
+        # Try to get the language from the locale
+        lang_code = None
+        
+        # First try getlocale
+        try:
+            loc = locale.getlocale(locale.LC_MESSAGES)
+            if loc and loc[0]:
+                lang_code = loc[0].split('_')[0].lower()
+        except (AttributeError, ValueError):
+            pass
+            
+        # If that didn't work, try getencoding
+        if not lang_code:
+            try:
+                encoding = locale.getencoding()
+                if encoding and encoding.startswith(('en', 'es', 'fr', 'de', 'it', 'ja', 'ko', 'ru', 'zh')):
+                    lang_code = encoding[:2]
+            except (AttributeError, ValueError):
+                pass
+                
+        # If we found a language code, use it
+        if lang_code:
             print(f"Detected system language: {lang_code}")
             return lang_code
+            
     except Exception as e:
         print(f"Could not detect system language: {e}")
     
