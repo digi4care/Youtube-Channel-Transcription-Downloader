@@ -26,17 +26,21 @@ python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -txt
 Download only JSON files (no TXT)
 
 python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -json
+
 Faster downloads (may increase risk of IP ban)
 
 python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -delay 1 -workers 5
+
 Slower, safer downloads (to prevent IP bans)
 
 python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -delay 3 -workers 2
+
 Download from multiple channels
 
 python Youtube.Transcribe.py https://youtube.com/c/channel1 https://youtube.com/c/channel2 -en
 
 Download from channels listed in a file (one URL per line or comma-separated)
+
 python Youtube.Transcribe.py -f channels.txt -en
 
 OPTIONS:
