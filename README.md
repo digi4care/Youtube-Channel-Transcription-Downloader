@@ -3,6 +3,36 @@
 
 # YouTube Channel Transcript Downloader
 
+## Requirements
+
+- Python 3.6+
+
+## Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/yourusername/Youtube-Channel-Transcription-Downloader.git
+   cd Youtube-Channel-Transcription-Downloader
+   ```
+
+2. **Create and activate a virtual environment**
+   ```bash
+   # On Windows
+   python -m venv venv
+   .\venv\Scripts\activate
+
+   # On macOS/Linux
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+
+3. **Install the required packages**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+Now you're ready to use the script! See the [Usage](#usage) section below for how to run it.
+
 This script downloads transcripts for all videos in one or more YouTube channels, or individual videos, in all available languages. It creates organized folders for each channel and manages files into subdirectories. Downloads are processed with rate-limiting to avoid YouTube IP bans, and existing files are skipped, allowing you to resume or update channels efficiently. Key features include:
 
 - Download transcripts for single or multiple videos and channels.
@@ -71,7 +101,7 @@ python Youtube.Transcribe.py [options] <channel_or_video_url(s)>
   ```
 - **Download from channels listed in a file (one URL per line or comma-separated)**
   ```bash
-  python Youtube.Transcribe.py -f channels.txt -en
+  python Youtube.Transcribe.py -f channels.lst -en
   ```
 
 ## Options
@@ -83,7 +113,37 @@ python Youtube.Transcribe.py [options] <channel_or_video_url(s)>
 - `-json`              Download only JSON files (no TXT)
 - `-delay N`           Delay between API requests in seconds (default: 1.5). Higher values reduce risk of IP bans but slow downloads
 - `-workers N`         Number of concurrent downloads (default: 3, range: 1-10). Lower values reduce risk of IP bans but slow downloads
+- `--debug`            Enable debug mode (disables screen clearing, useful for seeing error messages)
+- `--download-archive FILE`  Record downloaded video IDs in FILE (default: 'transcripts/archive.lst')
+- `--force`           Force re-download of videos, even if they're in the archive
+- `--dry-run`         Show what would be downloaded without making any changes
 - `-h, --help`         Show this help message
+
+## Download Archive
+
+The download archive feature helps you keep track of which videos have been processed, preventing duplicate downloads.
+
+### How it works:
+- When you use `--download-archive`, the script records the ID of each successfully downloaded video in the specified file (default: 'transcripts/archive.lst').
+- On subsequent runs, videos already in the archive will be skipped.
+- Use `--force` to override the archive and re-download videos.
+- Use `--dry-run` to see what would be downloaded without making any changes.
+
+### Examples:
+
+```bash
+# First run - downloads all videos and records them in the archive
+python Youtube.Transcribe.py --download-archive https://youtube.com/c/channel1 -en
+
+# Subsequent run - only downloads new videos
+python Youtube.Transcribe.py --download-archive https://youtube.com/c/channel1 -en
+
+# Force re-download of specific videos (ignores archive)
+python Youtube.Transcribe.py --download-archive --force https://youtube.com/watch?v=VIDEO_ID -en
+
+# See what would be downloaded (dry run)
+python Youtube.Transcribe.py --download-archive --dry-run https://youtube.com/c/channel1 -en
+```
 
 ## Rate Limiting
 
@@ -163,11 +223,5 @@ https://youtube.com/user/someuser
 - `-hu`      - Hungarian                  - `-bg`      - Bulgarian                  - `-hr`      - Croatian
 - `-sk`      - Slovak                     - `-lt`      - Lithuanian                 - `-sl`      - Slovenian
 - `-et`      - Estonian                   - `-lv`      - Latvian
-
-## Requirements
-
-- Python 3.6+
-- youtube_transcript_api (`pip install youtube-transcript-api`)
-- yt-dlp (`pip install yt-dlp`)
 
 ---
