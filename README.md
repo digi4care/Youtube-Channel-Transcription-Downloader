@@ -113,7 +113,6 @@ python Youtube.Transcribe.py [options] <channel_or_video_url(s)>
 - `-json`              Download only JSON files (no TXT)
 - `-delay N`           Delay between API requests in seconds (default: 1.5). Higher values reduce risk of IP bans but slow downloads
 - `-workers N`         Number of concurrent downloads (default: 3, range: 1-10). Lower values reduce risk of IP bans but slow downloads
-- `--debug`            Enable debug mode (disables screen clearing, useful for seeing error messages)
 - `--download-archive FILE`  Record downloaded video IDs in FILE (default: 'transcripts/archive.lst')
 - `--force`           Force re-download of videos, even if they're in the archive
 - `--dry-run`         Show what would be downloaded without making any changes
