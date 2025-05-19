@@ -113,36 +113,7 @@ python Youtube.Transcribe.py [options] <channel_or_video_url(s)>
 - `-json`              Download only JSON files (no TXT)
 - `-delay N`           Delay between API requests in seconds (default: 1.5). Higher values reduce risk of IP bans but slow downloads
 - `-workers N`         Number of concurrent downloads (default: 3, range: 1-10). Lower values reduce risk of IP bans but slow downloads
-- `--download-archive FILE`  Record downloaded video IDs in FILE (default: 'transcripts/archive.lst')
-- `--force`           Force re-download of videos, even if they're in the archive
-- `--dry-run`         Show what would be downloaded without making any changes
 - `-h, --help`         Show this help message
-
-## Download Archive
-
-The download archive feature helps you keep track of which videos have been processed, preventing duplicate downloads.
-
-### How it works:
-- When you use `--download-archive`, the script records the ID of each successfully downloaded video in the specified file (default: 'transcripts/archive.lst').
-- On subsequent runs, videos already in the archive will be skipped.
-- Use `--force` to override the archive and re-download videos.
-- Use `--dry-run` to see what would be downloaded without making any changes.
-
-### Examples:
-
-```bash
-# First run - downloads all videos and records them in the archive
-python Youtube.Transcribe.py --download-archive https://youtube.com/c/channel1 -en
-
-# Subsequent run - only downloads new videos
-python Youtube.Transcribe.py --download-archive https://youtube.com/c/channel1 -en
-
-# Force re-download of specific videos (ignores archive)
-python Youtube.Transcribe.py --download-archive --force https://youtube.com/watch?v=VIDEO_ID -en
-
-# See what would be downloaded (dry run)
-python Youtube.Transcribe.py --download-archive --dry-run https://youtube.com/c/channel1 -en
-```
 
 ## Rate Limiting
 
