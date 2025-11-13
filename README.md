@@ -12,11 +12,72 @@
 
 This version includes various improvements and extensions over the original project. You're welcome to contribute to make it even better!
 
+### Version 2.0 - Refactored Architecture
+
+The v2 version (`Youtube.Transcribe.py`) features:
+
+- **SOLID Principles**: Clean, maintainable code architecture
+- **TOML Configuration**: User-friendly configuration file (`config.toml`)
+- **Class-Based Design**: Modular components for better testing and extension
+- **Enhanced Rate Limiting**: Multiple strategies and better ban recovery
+- **Improved Error Handling**: More robust error management
+- **Flexible Configuration**: Override settings via environment variables
+
+### Quick Start with v2
+
+1. **Create default configuration**:
+
+   ```bash
+   python Youtube.Transcribe.py --create-config
+   ```
+
+2. **Edit `config.toml`** to customize settings like rate limiting, output formats, etc.
+
+3. **Run with your preferred configuration**:
+
+   ```bash
+   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en
+   ```
+
 ## Requirements
 
-- Python 3.6+
+- Python 3.11+
+- uv package manager (recommended) OR pip
+
+All requirements are listed in `pyproject.toml` and `requirements.txt`.
 
 ## Setup
+
+### Option 1: Using UV (Recommended)
+
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/digi4care/Youtube-Channel-Transcription-Downloader.git
+   cd Youtube-Channel-Transcription-Downloader
+   ```
+
+2. **Install dependencies with UV**
+
+   ```bash
+   # Install uv if you haven't already
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   
+   # Install all dependencies
+   uv sync
+   ```
+
+3. **Run the application**
+
+   ```bash
+   # Create configuration
+   uv run python Youtube.Transcribe.py --create-config
+   
+   # Download transcripts
+   uv run python Youtube.Transcribe.py https://youtube.com/c/channel1 -en
+   ```
+
+### Option 2: Using pip (Traditional)
 
 1. **Clone the repository**
 
@@ -40,43 +101,25 @@ This version includes various improvements and extensions over the original proj
 3. **Install the required packages**
 
    ```bash
-   # Install uv if you haven't already
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   
-   # Create a virtual environment and install dependencies
-   uv venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   uv pip install -r requirements.txt
+   pip install -r requirements.txt
    ```
 
-4. **Update the virtual environment**
+4. **Run the application**
 
    ```bash
-   uv venv
-   source .venv/bin/activate
-   uv pip install --upgrade certifi charset-normalizer idna requests urllib3 youtube-transcript-api yt-dlp
-   uv pip install --upgrade $(grep -v '^#' requirements.txt | cut -d= -f1)
-   uv pip freeze > requirements.txt
-   uv pip list --outdated
+   python Youtube.Transcribe.py --create-config
+   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en
    ```
 
-Now you're ready to use the script! See the [Usage](#usage) section below for how to run it.
-
-This script downloads transcripts for all videos in one or more YouTube channels, or individual videos, in all available languages. It creates organized folders for each channel and manages files into subdirectories. Downloads are processed with rate-limiting to avoid YouTube IP bans, and existing files are skipped, allowing you to resume or update channels efficiently. Key features include:
-
-- Download transcripts for single or multiple videos and channels.
-- Support for downloading transcripts in multiple languages, including all available languages.
-- Options to download only TXT or JSON files.
-- Configurable request delays and concurrency to manage download speed and avoid IP bans.
-- Smart error handling with retries, exponential backoff, and error skipping for non-retryable issues.
-- Organized file structure based on language and channel.
-- Command-line options for flexible usage, including reading URLs from a file.
-
----
-
-You can now replace the existing summary in your README.md file with this improved version.
-
 ## Usage
+
+### Version 2.0 (Recommended)
+
+```bash
+uv run python Youtube.Transcribe.py [options] <channel_or_video_url(s)>
+```
+
+### Version 1.0 (Original)
 
 ```bash
 python Youtube.Transcribe.py [options] <channel_or_video_url(s)>
@@ -84,22 +127,50 @@ python Youtube.Transcribe.py [options] <channel_or_video_url(s)>
 
 ## Examples
 
+### Version 2.0 Examples
+
+- **Download transcript for a single YouTube video**
+
+  ```bash
+  uv run python Youtube.Transcribe.py https://www.youtube.com/watch?v=dQw4w9WgXcQ -en
+  ```
+
+- **Download English transcripts from a channel**
+
+  ```bash
+  uv run python Youtube.Transcribe.py https://www.youtube.com/channel/UC-lHJZR3Gqxm24_Vd_AJ5Yw -en
+  ```
+
+- **Download multiple languages**
+
+  ```bash
+  uv run python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -es -fr
+  ```
+
+- **Download all available languages**
+
+  ```bash
+  uv run python Youtube.Transcribe.py https://youtube.com/c/channel1 -all
+  ```
+
+- **Download from channels listed in a file**
+
+  ```bash
+  uv run python Youtube.Transcribe.py -f channels.lst -en
+  ```
+
+- **Create configuration file**
+
+  ```bash
+  uv run python Youtube.Transcribe.py --create-config
+  ```
+
+### Version 1.0 Examples (Original)
+
 - **Download transcript for a single YouTube video**
 
   ```bash
   python Youtube.Transcribe.py https://www.youtube.com/watch?v=dQw4w9WgXcQ -en
-  ```
-
-- **Short URL also works**
-
-  ```bash
-  python Youtube.Transcribe.py https://youtu.be/dQw4w9WgXcQ -en
-  ```
-
-- **Multiple URLs**
-
-  ```bash
-  python Youtube.Transcribe.py https://youtu.be/aDkzgTWhVY4 https://youtu.be/3ZC1iqYfFGU -en
   ```
 
 - **Download English transcripts from a channel**
@@ -126,37 +197,34 @@ python Youtube.Transcribe.py [options] <channel_or_video_url(s)>
   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -txt
   ```
 
-- **Download only JSON files (no TXT)**
-
-  ```bash
-  python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -json
-  ```
-
 - **Faster downloads (may increase risk of IP ban)**
 
   ```bash
   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -delay 1 -workers 5
   ```
 
-- **Slower, safer downloads (to prevent IP bans)**
-
-  ```bash
-  python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -delay 3 -workers 2
-  ```
-
-- **Download from multiple channels**
-
-  ```bash
-  python Youtube.Transcribe.py https://youtube.com/c/channel1 https://youtube.com/c/channel2 -en
-  ```
-
-- **Download from channels listed in a file (one URL per line or comma-separated)**
+- **Download from channels listed in a file**
 
   ```bash
   python Youtube.Transcribe.py -f channels.lst -en
   ```
 
 ## Options
+
+### Version 2.0 Options
+
+- `-f, --file FILE`    Read channel URLs from a text file (one per line or comma-separated)
+- `--create-config`    Create default config.toml file
+- `--show-config`      Show current configuration
+- `-LANG`              Language code for transcripts (e.g., `-en` for English). Multiple language codes can be specified (e.g., `-en -es -fr`)
+- `-all`               Download all available languages for each video
+- `-txt`               Download only TXT files (no JSON)
+- `-json`              Download only JSON files (no TXT)
+- `-delay N`           Delay between API requests in seconds (default: 1.5). Higher values reduce risk of IP bans but slow downloads
+- `-workers N`         Number of concurrent downloads (default: 3, range: 1-10). Lower values reduce risk of IP bans but slow downloads
+- `-h, --help`         Show help message
+
+### Version 1.0 Options (Original)
 
 - `-f, --file FILE`    Read channel URLs from a text file (one per line or comma-separated)
 - `-LANG`              Language code for transcripts (e.g., `-en` for English). Multiple language codes can be specified (e.g., `-en -es -fr`)
@@ -165,7 +233,63 @@ python Youtube.Transcribe.py [options] <channel_or_video_url(s)>
 - `-json`              Download only JSON files (no TXT)
 - `-delay N`           Delay between API requests in seconds (default: 1.5). Higher values reduce risk of IP bans but slow downloads
 - `-workers N`         Number of concurrent downloads (default: 3, range: 1-10). Lower values reduce risk of IP bans but slow downloads
-- `-h, --help`         Show this help message
+- `-h, --help`         Show help message
+
+## Configuration (v2)
+
+The v2 version uses a `config.toml` file for easy configuration management:
+
+### Creating Configuration
+
+```bash
+# Create default config file
+python Youtube.Transcribe.py --create-config
+
+# View current configuration
+python Youtube.Transcribe.py --show-config
+```
+
+### Configuration Sections
+
+**[rate_limiting]** - Control download speed and safety:
+
+- `base_delay`: Delay between requests (seconds)
+- `max_workers`: Concurrent downloads (1-10)
+- `strategy`: "conservative", "balanced", or "aggressive"
+
+**[file_handling]** - Control file organization:
+
+- `output_dir`: Where to save transcripts
+- `use_language_folders`: Organize by language
+- `download_formats`: ["txt"], ["json"], or both
+
+**[ui_settings]** - Control the interface:
+
+- `show_progress`: Show progress bars
+- `clear_screen`: Clear screen on startup
+- `color_scheme`: Visual theme
+
+**[advanced]** - Power user settings:
+
+- `enable_cache`: Cache API responses
+- `log_level`: Logging verbosity
+- `log_file`: Save logs to file
+
+### Environment Variables
+
+Override config with environment variables:
+
+- `YTD_DELAY`: Set base delay
+- `YTD_WORKERS`: Set worker count
+- `YTD_OUTPUT_DIR`: Set output directory
+- `YTD_LOG_LEVEL`: Set log level
+- `YTD_RATE_STRATEGY`: Set rate limiting strategy
+
+Example:
+
+```bash
+YTD_DELAY=3 YTD_WORKERS=2 python Youtube.Transcribe.py https://youtube.com/c/channel1 -en
+```
 
 ## Rate Limiting
 
