@@ -37,6 +37,17 @@
    uv pip install -r requirements.txt
    ```
 
+4. **Update the virtual environment**
+
+   ```bash
+   uv venv
+   source .venv/bin/activate
+   uv pip install --upgrade certifi charset-normalizer idna requests urllib3 youtube-transcript-api yt-dlp
+   uv pip install --upgrade $(grep -v '^#' requirements.txt | cut -d= -f1)
+   uv pip freeze > requirements.txt
+   uv pip list --outdated
+   ```
+
 Now you're ready to use the script! See the [Usage](#usage) section below for how to run it.
 
 This script downloads transcripts for all videos in one or more YouTube channels, or individual videos, in all available languages. It creates organized folders for each channel and manages files into subdirectories. Downloads are processed with rate-limiting to avoid YouTube IP bans, and existing files are skipped, allowing you to resume or update channels efficiently. Key features include:
