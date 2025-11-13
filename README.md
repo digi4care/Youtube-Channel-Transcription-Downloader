@@ -1,5 +1,17 @@
 # YouTube Channel Transcript Downloader
 
+> **Note**: This is an enhanced fork of the original project by [titusrugabunda](https://github.com/rugabunda).
+> The original project can be found at: https://github.com/rugabunda/youtube-transcript-downloader
+
+## Credits
+
+- Original Author: [titusrugabunda](https://github.com/rugabunda)
+- Forked and Enhanced by: [digi4care](https://github.com/digi4care)
+
+## About This Fork
+
+This version includes various improvements and extensions over the original project. You're welcome to contribute to make it even better!
+
 ## Requirements
 
 - Python 3.6+
