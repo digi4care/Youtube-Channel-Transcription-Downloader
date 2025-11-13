@@ -28,7 +28,13 @@
 3. **Install the required packages**
 
    ```bash
-   pip install -r requirements.txt
+   # Install uv if you haven't already
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   
+   # Create a virtual environment and install dependencies
+   uv venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   uv pip install -r requirements.txt
    ```
 
 Now you're ready to use the script! See the [Usage](#usage) section below for how to run it.
