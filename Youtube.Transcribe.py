@@ -17,21 +17,22 @@ import logging
 # Third-party imports
 from youtube_transcript_api import YouTubeTranscriptApi, _errors
 from tqdm import tqdm
-from colorama import Fore, Back, Style, init as colorama_init
+from colorama import Fore, Style, init as colorama_init
 
 # Initialize colorama for cross-platform colored terminal text
 colorama_init(autoreset=True)
+
 
 # Set up logging configuration with color support
 class ColoredFormatter(logging.Formatter):
     """Custom formatter to add colors to log messages"""
 
     COLORS = {
-        'DEBUG': Fore.CYAN,
-        'INFO': Fore.WHITE,
-        'WARNING': Fore.YELLOW,
-        'ERROR': Fore.RED,
-        'CRITICAL': Fore.RED + Style.BRIGHT,
+        "DEBUG": Fore.CYAN,
+        "INFO": Fore.WHITE,
+        "WARNING": Fore.YELLOW,
+        "ERROR": Fore.RED,
+        "CRITICAL": Fore.RED + Style.BRIGHT,
     }
 
     def format(self, record):
@@ -46,9 +47,10 @@ class ColoredFormatter(logging.Formatter):
                 record.msg = f"{Fore.RED}{record.msg}{Style.RESET_ALL}"
         return super().format(record)
 
+
 # Configure logger
 handler = logging.StreamHandler()
-handler.setFormatter(ColoredFormatter('%(message)s'))
+handler.setFormatter(ColoredFormatter("%(message)s"))
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.addHandler(handler)
@@ -62,9 +64,12 @@ original_workers = None
 ban_detected = False
 ban_recovery_time = None
 
+
 def signal_handler(sig, frame):
     """Handle termination signals properly."""
-    print(f"\n{Fore.YELLOW}Script termination requested. Cleaning up...{Style.RESET_ALL}")
+    print(
+        f"\n{Fore.YELLOW}Script termination requested. Cleaning up...{Style.RESET_ALL}"
+    )
     # Kill any active subprocesses
     for process in active_processes:
         try:
@@ -76,19 +81,22 @@ def signal_handler(sig, frame):
     print(f"{Fore.GREEN}Cleanup complete. Exiting.{Style.RESET_ALL}")
     os._exit(0)  # Use os._exit to force immediate termination
 
+
 # Register signal handlers
 signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
 signal.signal(signal.SIGTERM, signal_handler)  # Kill command
-if hasattr(signal, 'SIGTSTP'):  # Ctrl+Z (not available on Windows)
+if hasattr(signal, "SIGTSTP"):  # Ctrl+Z (not available on Windows)
     signal.signal(signal.SIGTSTP, signal_handler)
+
 
 def sanitize_filename(name):
     """Remove invalid characters from filenames."""
     return re.sub(r'[\\/*?:"<>|]', "_", name)
 
+
 def display_logo():
     """Display an attractive ASCII logo."""
-    logo = fr"""
+    logo = rf"""
 {Fore.CYAN}╭━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╮
 {Fore.CYAN}┃ {Fore.YELLOW}__   __          _____      _            _____                          {Fore.CYAN}┃
 {Fore.CYAN}┃ {Fore.YELLOW}\ \ / /__  _   _|_   _|   _| |__   ___  |_   _| __ __ _ _ __  ___  ___  {Fore.CYAN}┃
@@ -101,6 +109,7 @@ def display_logo():
 {Style.RESET_ALL}"""
     print(logo)
 
+
 def display_help(show_logo=True):
     """Display usage instructions and available languages."""
     if show_logo:
@@ -108,24 +117,38 @@ def display_help(show_logo=True):
     print(f"{Fore.CYAN}=" * 80)
     print(f"{Fore.YELLOW}USAGE INSTRUCTIONS")
     print(f"{Fore.CYAN}=" * 80)
-    print("\nThis script downloads transcripts for videos on YouTube channels or individual videos.")
-    print("It creates a separate folder for each channel and organizes files into subdirectories.")
-    print(f"{Fore.YELLOW}Downloads are processed with rate limiting to avoid YouTube IP bans.")
-    print("Files that already exist will be skipped, allowing you to resume or update channels.")
+    print(
+        "\nThis script downloads transcripts for videos on YouTube channels or individual videos."
+    )
+    print(
+        "It creates a separate folder for each channel and organizes files into subdirectories."
+    )
+    print(
+        f"{Fore.YELLOW}Downloads are processed with rate limiting to avoid YouTube IP bans."
+    )
+    print(
+        "Files that already exist will be skipped, allowing you to resume or update channels."
+    )
 
     print(f"\n{Fore.GREEN}USAGE:")
-    print(f"  python Youtube.Transcribe.py [options] <channel_or_video_url(s)>")
+    print("  python Youtube.Transcribe.py [options] <channel_or_video_url(s)>")
 
     print(f"\n{Fore.GREEN}EXAMPLES:")
     print(f"{Fore.CYAN}  # Download transcript for a single YouTube video")
-    print("  python Youtube.Transcribe.py https://www.youtube.com/watch?v=dQw4w9WgXcQ -en")
+    print(
+        "  python Youtube.Transcribe.py https://www.youtube.com/watch?v=dQw4w9WgXcQ -en"
+    )
     print(f"{Fore.CYAN}  # Short URL also works")
     print("  python Youtube.Transcribe.py https://youtu.be/dQw4w9WgXcQ -en")
     print(f"{Fore.CYAN}  # Multiple URLs also works")
-    print("  Youtube.Transcribe.py https://youtu.be/aDkzgTWhVY4 https://youtu.be/3ZC1iqYfFGU -en")
+    print(
+        "  Youtube.Transcribe.py https://youtu.be/aDkzgTWhVY4 https://youtu.be/3ZC1iqYfFGU -en"
+    )
 
     print(f"{Fore.CYAN}  # Download English transcripts from a channel")
-    print("  python Youtube.Transcribe.py https://www.youtube.com/channel/UC-lHJZR3Gqxm24_Vd_AJ5Yw -en")
+    print(
+        "  python Youtube.Transcribe.py https://www.youtube.com/channel/UC-lHJZR3Gqxm24_Vd_AJ5Yw -en"
+    )
 
     print(f"{Fore.CYAN}  # Download multiple languages")
     print("  python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -es -fr")
@@ -140,46 +163,96 @@ def display_help(show_logo=True):
     print("  python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -json")
 
     print(f"{Fore.CYAN}  # Faster downloads (may increase risk of IP ban)")
-    print("  python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -delay 1 -workers 5")
+    print(
+        "  python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -delay 1 -workers 5"
+    )
 
     print(f"{Fore.CYAN}  # Slower, safer downloads (to prevent IP bans)")
-    print("  python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -delay 3 -workers 2")
+    print(
+        "  python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -delay 3 -workers 2"
+    )
 
     print(f"{Fore.CYAN}  # Download from multiple channels")
-    print("  python Youtube.Transcribe.py https://youtube.com/c/channel1 https://youtube.com/c/channel2 -en")
+    print(
+        "  python Youtube.Transcribe.py https://youtube.com/c/channel1 https://youtube.com/c/channel2 -en"
+    )
 
-    print(f"{Fore.CYAN}  # Download from channels listed in a file (one URL per line or comma-separated)")
+    print(
+        f"{Fore.CYAN}  # Download from channels listed in a file (one URL per line or comma-separated)"
+    )
     print("  python Youtube.Transcribe.py -f channels.txt -en")
 
     print(f"\n{Fore.GREEN}OPTIONS:")
-    print(f"{Fore.YELLOW}  -f, --file FILE{Style.RESET_ALL}    Read channel URLs from a text file (one per line or comma-separated)")
-    print(f"{Fore.YELLOW}  -LANG{Style.RESET_ALL}              Language code for transcripts (e.g., -en for English)")
-    print("                     Multiple language codes can be specified (e.g., -en -es -fr)")
-    print(f"{Fore.YELLOW}  -all{Style.RESET_ALL}               Download all available languages for each video")
-    print(f"{Fore.YELLOW}  -txt{Style.RESET_ALL}               Download only TXT files (no JSON)")
-    print(f"{Fore.YELLOW}  -json{Style.RESET_ALL}              Download only JSON files (no TXT)")
-    print(f"{Fore.YELLOW}  -delay N{Style.RESET_ALL}           Delay between API requests in seconds (default: 1.5)")
-    print("                     Higher values reduce risk of IP bans but slow downloads")
-    print(f"{Fore.YELLOW}  -workers N{Style.RESET_ALL}         Number of concurrent downloads (default: 3, range: 1-10)")
+    print(
+        f"{Fore.YELLOW}  -f, --file FILE{Style.RESET_ALL}    Read channel URLs from a text file (one per line or comma-separated)"
+    )
+    print(
+        f"{Fore.YELLOW}  -LANG{Style.RESET_ALL}              Language code for transcripts (e.g., -en for English)"
+    )
+    print(
+        "                     Multiple language codes can be specified (e.g., -en -es -fr)"
+    )
+    print(
+        f"{Fore.YELLOW}  -all{Style.RESET_ALL}               Download all available languages for each video"
+    )
+    print(
+        f"{Fore.YELLOW}  -txt{Style.RESET_ALL}               Download only TXT files (no JSON)"
+    )
+    print(
+        f"{Fore.YELLOW}  -json{Style.RESET_ALL}              Download only JSON files (no TXT)"
+    )
+    print(
+        f"{Fore.YELLOW}  -delay N{Style.RESET_ALL}           Delay between API requests in seconds (default: 1.5)"
+    )
+    print(
+        "                     Higher values reduce risk of IP bans but slow downloads"
+    )
+    print(
+        f"{Fore.YELLOW}  -workers N{Style.RESET_ALL}         Number of concurrent downloads (default: 3, range: 1-10)"
+    )
     print("                     Lower values reduce risk of IP bans but slow downloads")
     print(f"{Fore.YELLOW}  -h, --help{Style.RESET_ALL}         Show this help message")
 
     print(f"\n{Fore.GREEN}RATE LIMITING:")
-    print(f"{Fore.YELLOW}  To avoid YouTube IP bans, this script implements several protection measures:")
-    print("  1. Request delays: Controlled delay between API calls (adjust with -delay)")
-    print("  2. Random jitter: ±20% randomness added to each delay to avoid pattern detection")
-    print("  3. Limited concurrency: Restricted parallel downloads (adjust with -workers)")
-    print("  4. Smart retries: Automatic detection of non-retryable errors (age-restricted videos, etc.)")
-    print("  5. Exponential backoff: Increasingly longer delays after rate limit errors")
-    print("  6. Error skipping: No retry for videos that cannot have transcripts (subtitles disabled, etc.)")
+    print(
+        f"{Fore.YELLOW}  To avoid YouTube IP bans, this script implements several protection measures:"
+    )
+    print(
+        "  1. Request delays: Controlled delay between API calls (adjust with -delay)"
+    )
+    print(
+        "  2. Random jitter: ±20% randomness added to each delay to avoid pattern detection"
+    )
+    print(
+        "  3. Limited concurrency: Restricted parallel downloads (adjust with -workers)"
+    )
+    print(
+        "  4. Smart retries: Automatic detection of non-retryable errors (age-restricted videos, etc.)"
+    )
+    print(
+        "  5. Exponential backoff: Increasingly longer delays after rate limit errors"
+    )
+    print(
+        "  6. Error skipping: No retry for videos that cannot have transcripts (subtitles disabled, etc.)"
+    )
 
     print(f"\n{Fore.GREEN}  RECOMMENDED SETTINGS:")
-    print(f"  - Normal usage: Default values ({Fore.CYAN}-delay 1.5 -workers 3{Style.RESET_ALL})")
-    print(f"  - If IP banned:")
-    print("    1. Switch to very slow settings (-delay 5 -workers 1) until ban is lifted")
-    print("    2. After ban is lifted, continue with these slow settings for 5-7 minutes")
-    print("    3. Then reduce to half your original speed (double delay, halve workers)")
-    print("    4. If banned again, repeat the halving process until bans stop permanently")
+    print(
+        f"  - Normal usage: Default values ({Fore.CYAN}-delay 1.5 -workers 3{Style.RESET_ALL})"
+    )
+    print("  - If IP banned:")
+    print(
+        "    1. Switch to very slow settings (-delay 5 -workers 1) until ban is lifted"
+    )
+    print(
+        "    2. After ban is lifted, continue with these slow settings for 5-7 minutes"
+    )
+    print(
+        "    3. Then reduce to half your original speed (double delay, halve workers)"
+    )
+    print(
+        "    4. If banned again, repeat the halving process until bans stop permanently"
+    )
 
     print(f"\n{Fore.GREEN}REQUIREMENTS:")
     print("  - python 3.6+")
@@ -189,26 +262,13 @@ def display_help(show_logo=True):
     print("  - tqdm (pip install tqdm)")
     print(f"{Fore.CYAN}=" * 80)
 
-def main():
-    # Clear screen for better presentation
-    os.system('cls' if os.name == 'nt' else 'clear')
 
-    # Display logo only once
-    display_logo()
-
-    # Parse arguments
-    try:
-        urls, languages, download_all, download_txt, download_json, delay, workers = parse_arguments()
-    except Exception as e:
-        logging.error(f"Error parsing arguments: {e}")
-        display_help(show_logo=False)  # Don't show logo again
-        sys.exit(1)
 
 def get_system_language():
     """Get the user's system language."""
     try:
         # Set locale to the user's default
-        locale.setlocale(locale.LC_ALL, '')
+        locale.setlocale(locale.LC_ALL, "")
 
         # Try to get the language from the locale
         lang_code = None
@@ -217,7 +277,7 @@ def get_system_language():
         try:
             loc = locale.getlocale(locale.LC_MESSAGES)
             if loc and loc[0]:
-                lang_code = loc[0].split('_')[0].lower()
+                lang_code = loc[0].split("_")[0].lower()
         except (AttributeError, ValueError):
             pass
 
@@ -225,32 +285,45 @@ def get_system_language():
         if not lang_code:
             try:
                 encoding = locale.getencoding()
-                if encoding and encoding.startswith(('en', 'es', 'fr', 'de', 'it', 'ja', 'ko', 'ru', 'zh')):
+                if encoding and encoding.startswith(
+                    ("en", "es", "fr", "de", "it", "ja", "ko", "ru", "zh")
+                ):
                     lang_code = encoding[:2]
             except (AttributeError, ValueError):
                 pass
 
         # If we found a language code, use it
         if lang_code:
-            logging.info(f"Detected system language: {Fore.CYAN}{lang_code}{Style.RESET_ALL}")
+            logging.info(
+                f"Detected system language: {Fore.CYAN}{lang_code}{Style.RESET_ALL}"
+            )
             return lang_code
 
     except Exception as e:
         logging.warning(f"Could not detect system language: {e}")
 
     logging.info(f"Defaulting to {Fore.CYAN}English (en){Style.RESET_ALL}")
-    return 'en'
+    return "en"
+
 
 def parse_arguments():
     """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="YouTube Channel Transcript Downloader", add_help=False)
-    parser.add_argument('-f', '--file', help="File containing channel URLs")
-    parser.add_argument('-h', '--help', action='store_true', help="Show help message")
-    parser.add_argument('-all', action='store_true', help="Download all available languages")
-    parser.add_argument('-txt', action='store_true', help="Download only TXT files")
-    parser.add_argument('-json', action='store_true', help="Download only JSON files")
-    parser.add_argument('-delay', type=float, default=1.5, help="Delay between API requests in seconds")
-    parser.add_argument('-workers', type=int, default=3, help="Number of concurrent downloads")
+    parser = argparse.ArgumentParser(
+        description="YouTube Channel Transcript Downloader", add_help=False
+    )
+    parser.add_argument("-f", "--file", help="File containing channel URLs")
+    parser.add_argument("-h", "--help", action="store_true", help="Show help message")
+    parser.add_argument(
+        "-all", action="store_true", help="Download all available languages"
+    )
+    parser.add_argument("-txt", action="store_true", help="Download only TXT files")
+    parser.add_argument("-json", action="store_true", help="Download only JSON files")
+    parser.add_argument(
+        "-delay", type=float, default=1.5, help="Delay between API requests in seconds"
+    )
+    parser.add_argument(
+        "-workers", type=int, default=3, help="Number of concurrent downloads"
+    )
 
     # First parse just the file and help arguments
     args, remaining = parser.parse_known_args()
@@ -263,8 +336,12 @@ def parse_arguments():
     urls = []
     languages = []
     download_all = args.all  # Flag to download all languages
-    download_txt = True if not args.json else False  # Default to both unless only JSON is specified
-    download_json = True if not args.txt else False  # Default to both unless only TXT is specified
+    download_txt = (
+        True if not args.json else False
+    )  # Default to both unless only JSON is specified
+    download_json = (
+        True if not args.txt else False
+    )  # Default to both unless only TXT is specified
     delay = max(0.5, args.delay)  # Ensure minimum delay of 0.5 seconds
     workers = max(1, min(10, args.workers))  # Limit workers between 1 and 10
 
@@ -281,38 +358,40 @@ def parse_arguments():
             sys.exit(1)
 
         try:
-            with open(args.file, 'r', encoding='utf-8') as f:
+            with open(args.file, "r", encoding="utf-8") as f:
                 content = f.read()
 
             # Split by commas or newlines
-            content = content.replace(',', '\n')
-            file_urls = [url.strip() for url in content.split('\n') if url.strip()]
+            content = content.replace(",", "\n")
+            file_urls = [url.strip() for url in content.split("\n") if url.strip()]
             urls.extend(file_urls)
 
-            logging.info(f"Loaded {Fore.CYAN}{len(file_urls)}{Style.RESET_ALL} URLs from file: {Fore.CYAN}{args.file}{Style.RESET_ALL}")
+            logging.info(
+                f"Loaded {Fore.CYAN}{len(file_urls)}{Style.RESET_ALL} URLs from file: {Fore.CYAN}{args.file}{Style.RESET_ALL}"
+            )
         except Exception as e:
             logging.error(f"Error reading file {args.file}: {str(e)}")
             sys.exit(1)
 
     # Parse URLs and languages from command line
     for arg in remaining:
-        if arg.startswith('-'):
-            if arg == '-all':
+        if arg.startswith("-"):
+            if arg == "-all":
                 download_all = True
-            elif arg == '-txt':
+            elif arg == "-txt":
                 download_txt = True
                 download_json = False
-            elif arg == '-json':
+            elif arg == "-json":
                 download_json = True
                 download_txt = False
-            elif arg.startswith('-delay') or arg.startswith('-workers'):
+            elif arg.startswith("-delay") or arg.startswith("-workers"):
                 # These are already handled by argparse
                 continue
             else:
                 # This is a language code
                 lang_code = arg[1:]  # Remove the dash
                 languages.append(lang_code)
-        elif arg.startswith(('http://', 'https://', 'www.')):
+        elif arg.startswith(("http://", "https://", "www.")):
             urls.append(arg)  # This is a URL
 
     # Ensure we have at least one URL
@@ -326,6 +405,7 @@ def parse_arguments():
 
     return urls, languages, download_all, download_txt, download_json, delay, workers
 
+
 def detect_languages_in_folder(channel_dir):
     """Detect existing transcript languages in a channel directory."""
     languages = set()
@@ -338,7 +418,11 @@ def detect_languages_in_folder(channel_dir):
         item_path = os.path.join(channel_dir, item)
         # Check if it's a directory and follows language code naming pattern (2-10 characters)
         # Exclude the "json" directory from being treated as a language
-        if os.path.isdir(item_path) and re.match(r'^[a-zA-Z\-]{2,10}$', item) and item != "json":
+        if (
+            os.path.isdir(item_path)
+            and re.match(r"^[a-zA-Z\-]{2,10}$", item)
+            and item != "json"
+        ):
             languages.add(item)
 
     # If no language folders, check file suffixes
@@ -347,7 +431,7 @@ def detect_languages_in_folder(channel_dir):
         for file in os.listdir(channel_dir):
             if file.endswith(".txt"):
                 # Extract language from filename (assuming format: *_LANG.txt)
-                match = re.search(r'_([a-zA-Z\-]{2,10})\.txt$', file)
+                match = re.search(r"_([a-zA-Z\-]{2,10})\.txt$", file)
                 if match:
                     languages.add(match.group(1))
 
@@ -357,18 +441,19 @@ def detect_languages_in_folder(channel_dir):
             for file in os.listdir(json_dir):
                 if file.endswith(".json"):
                     # Extract language from filename (assuming format: *_LANG.json)
-                    match = re.search(r'_([a-zA-Z\-]{2,10})\.json$', file)
+                    match = re.search(r"_([a-zA-Z\-]{2,10})\.json$", file)
                     if match:
                         languages.add(match.group(1))
 
     return languages
+
 
 def get_channel_name(channel_url):
     """Get the channel name for directory creation."""
     logging.info("Retrieving channel name...")
 
     # Add a spinner animation for visual feedback
-    spinner = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
+    spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
     spinner_idx = 0
     process = None
 
@@ -376,18 +461,24 @@ def get_channel_name(channel_url):
         command = [
             "yt-dlp",
             "--skip-download",
-            "--print", "%(channel)s",
-            "--playlist-items", "1",  # Only get info for one video to speed things up
-            channel_url
+            "--print",
+            "%(channel)s",
+            "--playlist-items",
+            "1",  # Only get info for one video to speed things up
+            channel_url,
         ]
 
         logging.debug(f"Running command: {' '.join(command)}")
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        process = subprocess.Popen(
+            command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
         active_processes.append(process)
 
         # Display spinner while waiting
         while process.poll() is None:
-            sys.stdout.write(f"\r{Fore.CYAN}Fetching channel info... {spinner[spinner_idx]}{Style.RESET_ALL}")
+            sys.stdout.write(
+                f"\r{Fore.CYAN}Fetching channel info... {spinner[spinner_idx]}{Style.RESET_ALL}"
+            )
             sys.stdout.flush()
             spinner_idx = (spinner_idx + 1) % len(spinner)
             time.sleep(0.1)
@@ -426,6 +517,7 @@ def get_channel_name(channel_url):
             logging.error(f"Error terminating process: {ex}")
         return "youtube_channel"
 
+
 def get_videos_from_channel(channel_url):
     """Get all video IDs and titles from a YouTube channel using yt-dlp."""
     logging.info(f"Fetching videos from: {Fore.CYAN}{channel_url}{Style.RESET_ALL}")
@@ -437,14 +529,17 @@ def get_videos_from_channel(channel_url):
         command = [
             "yt-dlp",
             "--flat-playlist",
-            "--print", "%(id)s %(title)s",
-            channel_url
+            "--print",
+            "%(id)s %(title)s",
+            channel_url,
         ]
 
         logging.debug(f"Running command: {' '.join(command)}")
 
         # Direct execution without progress bars
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        process = subprocess.Popen(
+            command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
         active_processes.append(process)
 
         stdout, stderr = process.communicate(timeout=600)
@@ -455,7 +550,7 @@ def get_videos_from_channel(channel_url):
             return []
 
         videos_data = []
-        lines = stdout.strip().split('\n')
+        lines = stdout.strip().split("\n")
 
         print(f"{Fore.GREEN}Found {len(lines)} videos. Processing...{Style.RESET_ALL}")
 
@@ -466,18 +561,19 @@ def get_videos_from_channel(channel_url):
                 if len(parts) >= 2:
                     video_id = parts[0]
                     title = parts[1]
-                    videos_data.append({
-                        'id': video_id,
-                        'title': title
-                    })
+                    videos_data.append({"id": video_id, "title": title})
                 else:
                     logging.warning(f"Couldn't parse video data from: {line}")
 
-        logging.info(f"Total videos found: {Fore.GREEN}{len(videos_data)}{Style.RESET_ALL}")
+        logging.info(
+            f"Total videos found: {Fore.GREEN}{len(videos_data)}{Style.RESET_ALL}"
+        )
         return videos_data
 
     except subprocess.TimeoutExpired:
-        logging.error("Timeout while fetching videos list. Try again or use a different channel.")
+        logging.error(
+            "Timeout while fetching videos list. Try again or use a different channel."
+        )
         try:
             process.terminate()
             active_processes.remove(process)
@@ -495,6 +591,7 @@ def get_videos_from_channel(channel_url):
         if stderr:
             logging.error(f"Error output: {stderr}")
         return []
+
 
 def should_use_language_folders(existing_languages, requested_languages):
     """Determine if we should use language-specific folders."""
@@ -525,12 +622,15 @@ def should_use_language_folders(existing_languages, requested_languages):
 
     return False
 
+
 def move_files_to_language_folders(channel_dir, languages):
     """Move existing files to language-specific folders if needed."""
     if not os.path.exists(channel_dir):
         return
 
-    logging.info(f"{Fore.YELLOW}Reorganizing existing files into language folders...{Style.RESET_ALL}")
+    logging.info(
+        f"{Fore.YELLOW}Reorganizing existing files into language folders...{Style.RESET_ALL}"
+    )
 
     # Create language directories if they don't exist
     for lang in languages:
@@ -560,7 +660,11 @@ def move_files_to_language_folders(channel_dir, languages):
 
     # Actually move the files now that we've identified them
     if files_to_move:
-        with tqdm(total=len(files_to_move), desc=f"{Fore.YELLOW}Moving files{Style.RESET_ALL}", colour='yellow') as pbar:
+        with tqdm(
+            total=len(files_to_move),
+            desc=f"{Fore.YELLOW}Moving files{Style.RESET_ALL}",
+            colour="yellow",
+        ) as pbar:
             for file, lang, file_type in files_to_move:
                 if file_type == "txt":
                     src = os.path.join(channel_dir, file)
@@ -579,7 +683,9 @@ def move_files_to_language_folders(channel_dir, languages):
                 else:
                     pbar.update(1)
 
-        logging.info(f"Successfully moved {Fore.GREEN}{len(files_to_move)}{Style.RESET_ALL} files to language-specific folders")
+        logging.info(
+            f"Successfully moved {Fore.GREEN}{len(files_to_move)}{Style.RESET_ALL} files to language-specific folders"
+        )
     else:
         logging.info("No files needed to be moved")
 
@@ -596,10 +702,16 @@ def move_files_to_language_folders(channel_dir, languages):
 
     logging.info(f"{Fore.GREEN}File reorganization complete{Style.RESET_ALL}")
 
+
 def get_available_languages(video_id):
     """Get all available languages for a video."""
     try:
-        with tqdm(total=1, desc=f"{Fore.CYAN}Checking available languages{Style.RESET_ALL}", bar_format='{desc}: {bar}| {elapsed}', colour='cyan') as pbar:
+        with tqdm(
+            total=1,
+            desc=f"{Fore.CYAN}Checking available languages{Style.RESET_ALL}",
+            bar_format="{desc}: {bar}| {elapsed}",
+            colour="cyan",
+        ) as pbar:
             transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
             languages = []
 
@@ -614,12 +726,14 @@ def get_available_languages(video_id):
         logging.error(f"Error getting available languages for video {video_id}: {e}")
         return []
 
+
 def controlled_delay(base_delay):
     """Add a controlled delay with jitter to avoid predictable patterns."""
     # Add random jitter (±20% of base delay)
     jitter = base_delay * 0.2 * (random.random() * 2 - 1)
     sleep_time = base_delay + jitter
     time.sleep(sleep_time)
+
 
 def adjust_rate_for_ban_recovery(current_delay, current_workers):
     """
@@ -636,17 +750,27 @@ def adjust_rate_for_ban_recovery(current_delay, current_workers):
     # If we detect a ban
     if not ban_detected:
         ban_detected = True
-        print(f"\n{Fore.RED}⚠️  YouTube rate limit/ban detected! Switching to recovery mode...{Style.RESET_ALL}")
-        print(f"{Fore.YELLOW}Original settings: delay={original_delay}s, workers={original_workers}{Style.RESET_ALL}")
-        print(f"{Fore.GREEN}Switching to slow mode: delay=5s, workers=1{Style.RESET_ALL}")
+        print(
+            f"\n{Fore.RED}⚠️  YouTube rate limit/ban detected! Switching to recovery mode...{Style.RESET_ALL}"
+        )
+        print(
+            f"{Fore.YELLOW}Original settings: delay={original_delay}s, workers={original_workers}{Style.RESET_ALL}"
+        )
+        print(
+            f"{Fore.GREEN}Switching to slow mode: delay=5s, workers=1{Style.RESET_ALL}"
+        )
         return 5.0, 1  # Very slow settings during ban
 
     # If ban was already detected and this is called again
     if ban_recovery_time is None:
         # First recovery after ban lifted
         ban_recovery_time = time.time()
-        print(f"\n{Fore.GREEN}✓ Ban appears to be lifted, starting recovery period...{Style.RESET_ALL}")
-        print(f"{Fore.YELLOW}Continuing slow mode for 5-7 minutes: delay=5s, workers=1{Style.RESET_ALL}")
+        print(
+            f"\n{Fore.GREEN}✓ Ban appears to be lifted, starting recovery period...{Style.RESET_ALL}"
+        )
+        print(
+            f"{Fore.YELLOW}Continuing slow mode for 5-7 minutes: delay=5s, workers=1{Style.RESET_ALL}"
+        )
         return 5.0, 1  # Keep very slow settings during initial recovery
 
     # Check if we're past the recovery period (5-7 minutes)
@@ -667,10 +791,15 @@ def adjust_rate_for_ban_recovery(current_delay, current_workers):
     ban_detected = False
     ban_recovery_time = None
 
-    print(f"\n{Fore.GREEN}✓ Recovery period complete. Switching to half speed:{Style.RESET_ALL}")
-    print(f"{Fore.YELLOW}New settings: delay={new_delay}s, workers={new_workers}{Style.RESET_ALL}")
+    print(
+        f"\n{Fore.GREEN}✓ Recovery period complete. Switching to half speed:{Style.RESET_ALL}"
+    )
+    print(
+        f"{Fore.YELLOW}New settings: delay={new_delay}s, workers={new_workers}{Style.RESET_ALL}"
+    )
 
     return new_delay, new_workers
+
 
 def download_transcript_with_retry(video_id, language, max_retries=3, base_delay=1.5):
     """Download transcript with retries and exponential backoff."""
@@ -680,15 +809,19 @@ def download_transcript_with_retry(video_id, language, max_retries=3, base_delay
         try:
             # Add a delay before each request, longer after each retry
             if retries > 0:
-                backoff_delay = base_delay * (2 ** retries)  # Exponential backoff
-                logging.info(f"Retry {retries}/{max_retries} for {video_id} - waiting {backoff_delay:.1f} seconds...")
+                backoff_delay = base_delay * (2**retries)  # Exponential backoff
+                logging.info(
+                    f"Retry {retries}/{max_retries} for {video_id} - waiting {backoff_delay:.1f} seconds..."
+                )
                 time.sleep(backoff_delay)
 
             # Add a small delay even on first attempt
             controlled_delay(base_delay)
 
             # Attempt to get the transcript
-            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=[language])
+            transcript = YouTubeTranscriptApi.get_transcript(
+                video_id, languages=[language]
+            )
             return transcript, None  # Success
 
         except _errors.NoTranscriptFound:
@@ -696,23 +829,30 @@ def download_transcript_with_retry(video_id, language, max_retries=3, base_delay
             return None, f"No {language} transcript available"
 
         except _errors.TranscriptsDisabled:
-            return None, f"Subtitles are disabled for this video"
+            return None, "Subtitles are disabled for this video"
 
         except Exception as e:
             error_str = str(e).lower()
 
             # Don't retry for these specific cases:
             if "age-restricted" in error_str:
-                return None, f"Age restricted video (requires authentication)"
+                return None, "Age restricted video (requires authentication)"
 
             if "subtitles are disabled" in error_str:
-                return None, f"Subtitles are disabled for this video"
+                return None, "Subtitles are disabled for this video"
 
-            if "this video doesn't have" in error_str or "transcript unavailable" in error_str:
-                return None, f"No transcript available for this video"
+            if (
+                "this video doesn't have" in error_str
+                or "transcript unavailable" in error_str
+            ):
+                return None, "No transcript available for this video"
 
             # Check for rate limiting indicators
-            if "429" in error_str or "too many requests" in error_str or "rate limit" in error_str:
+            if (
+                "429" in error_str
+                or "too many requests" in error_str
+                or "rate limit" in error_str
+            ):
                 logging.warning(f"Rate limit detected for {video_id}. Backing off...")
                 # Mark ban as detected for recovery process
                 ban_detected = True
@@ -720,7 +860,7 @@ def download_transcript_with_retry(video_id, language, max_retries=3, base_delay
                 if retries < max_retries:
                     retries += 1
                     # Use a longer delay for rate limit errors
-                    backoff_delay = base_delay * (3 ** retries)
+                    backoff_delay = base_delay * (3**retries)
                     time.sleep(backoff_delay)
                 else:
                     return None, f"Rate limited: {str(e)}"
@@ -733,10 +873,19 @@ def download_transcript_with_retry(video_id, language, max_retries=3, base_delay
 
     return None, "Maximum retries exceeded"
 
-def download_transcript(video_data, language, output_dir, use_language_folders, download_txt, download_json, delay):
+
+def download_transcript(
+    video_data,
+    language,
+    output_dir,
+    use_language_folders,
+    download_txt,
+    download_json,
+    delay,
+):
     """Download transcript for a single video."""
-    video_id = video_data['id']
-    title = sanitize_filename(video_data['title'])
+    video_id = video_data["id"]
+    title = sanitize_filename(video_data["title"])
 
     # Create filename with title and video ID at the end
     base_filename = f"{title}_{video_id}"
@@ -772,66 +921,77 @@ def download_transcript(video_data, language, output_dir, use_language_folders, 
 
     if files_exist:
         return {
-            'success': True,
-            'video_id': video_id,
-            'title': title,
-            'skipped': True,
-            'language': language
+            "success": True,
+            "video_id": video_id,
+            "title": title,
+            "skipped": True,
+            "language": language,
         }
 
     # Download transcript with retry logic
-    transcript, error = download_transcript_with_retry(video_id, language, base_delay=delay)
+    transcript, error = download_transcript_with_retry(
+        video_id, language, base_delay=delay
+    )
 
     if transcript:
         # Save transcript to JSON file if requested
         if download_json:
             try:
-                with open(json_filename, 'w', encoding='utf-8') as f:
+                with open(json_filename, "w", encoding="utf-8") as f:
                     json.dump(transcript, f, ensure_ascii=False, indent=2)
             except Exception as e:
                 logging.error(f"Error saving JSON file {json_filename}: {e}")
                 return {
-                    'success': False,
-                    'video_id': video_id,
-                    'title': title,
-                    'error': f"Error saving JSON file: {str(e)}",
-                    'language': language
+                    "success": False,
+                    "video_id": video_id,
+                    "title": title,
+                    "error": f"Error saving JSON file: {str(e)}",
+                    "language": language,
                 }
 
         # Save text version if requested
         if download_txt:
             try:
-                with open(text_filename, 'w', encoding='utf-8') as f:
-                    full_text = " ".join([item['text'] for item in transcript])
+                with open(text_filename, "w", encoding="utf-8") as f:
+                    full_text = " ".join([item["text"] for item in transcript])
                     f.write(full_text)
             except Exception as e:
                 logging.error(f"Error saving TXT file {text_filename}: {e}")
                 return {
-                    'success': False,
-                    'video_id': video_id,
-                    'title': title,
-                    'error': f"Error saving TXT file: {str(e)}",
-                    'language': language
+                    "success": False,
+                    "video_id": video_id,
+                    "title": title,
+                    "error": f"Error saving TXT file: {str(e)}",
+                    "language": language,
                 }
 
         return {
-            'success': True,
-            'video_id': video_id,
-            'title': title,
-            'skipped': False,
-            'language': language
+            "success": True,
+            "video_id": video_id,
+            "title": title,
+            "skipped": False,
+            "language": language,
         }
     else:
         return {
-            'success': False,
-            'video_id': video_id,
-            'title': title,
-            'error': error,
-            'language': language
+            "success": False,
+            "video_id": video_id,
+            "title": title,
+            "error": error,
+            "language": language,
         }
 
-def download_transcripts_parallel(videos_data, languages, channel_name, download_all=False,
-                                 download_txt=True, download_json=True, delay=1.5, workers=3):
+
+def download_transcripts_parallel(
+    videos_data,
+    languages,
+    channel_name,
+    download_all=False,
+    download_txt=True,
+    download_json=True,
+    delay=1.5,
+    workers=3,
+):
     """Download transcripts for all videos in parallel with rate limiting."""
     global ban_detected, ban_recovery_time
 
@@ -846,17 +1006,25 @@ def download_transcripts_parallel(videos_data, languages, channel_name, download
         lang_list = f"{Fore.CYAN}{', '.join(existing_languages)}{Style.RESET_ALL}"
     else:
         lang_list = f"{Fore.YELLOW}None{Style.RESET_ALL}"
-    logging.info(f"Detected {Fore.CYAN}{len(existing_languages)}{Style.RESET_ALL} existing language(s) in folder: {lang_list}")
+    logging.info(
+        f"Detected {Fore.CYAN}{len(existing_languages)}{Style.RESET_ALL} existing language(s) in folder: {lang_list}"
+    )
 
     # Determine if we should use language folders
-    use_language_folders = should_use_language_folders(existing_languages, set(languages))
+    use_language_folders = should_use_language_folders(
+        existing_languages, set(languages)
+    )
 
     # If we need to reorganize existing files when switching to language folders
     if use_language_folders:
         move_files_to_language_folders(output_dir, languages)
-        logging.info(f"Using {Fore.CYAN}language-specific folders{Style.RESET_ALL} for organization")
+        logging.info(
+            f"Using {Fore.CYAN}language-specific folders{Style.RESET_ALL} for organization"
+        )
     else:
-        logging.info(f"Using {Fore.CYAN}standard folder structure{Style.RESET_ALL} (not using language folders)")
+        logging.info(
+            f"Using {Fore.CYAN}standard folder structure{Style.RESET_ALL} (not using language folders)"
+        )
 
     successful = 0
     failed = 0
@@ -864,21 +1032,27 @@ def download_transcripts_parallel(videos_data, languages, channel_name, download
 
     # If download_all is True, we need to query available languages for the first video
     if download_all and videos_data:
-        logging.info(f"{Fore.YELLOW}Checking available languages for the channel...{Style.RESET_ALL}")
+        logging.info(
+            f"{Fore.YELLOW}Checking available languages for the channel...{Style.RESET_ALL}"
+        )
         try:
             # Try to get available languages for the first video
-            first_video = videos_data[0]['id']
+            first_video = videos_data[0]["id"]
             available_langs = get_available_languages(first_video)
 
             if available_langs:
-                logging.info(f"Found {Fore.GREEN}{len(available_langs)}{Style.RESET_ALL} available languages: {Fore.CYAN}{', '.join(available_langs)}{Style.RESET_ALL}")
+                logging.info(
+                    f"Found {Fore.GREEN}{len(available_langs)}{Style.RESET_ALL} available languages: {Fore.CYAN}{', '.join(available_langs)}{Style.RESET_ALL}"
+                )
                 languages = available_langs
                 # If downloading all languages, we will definitely use language folders
                 use_language_folders = True
                 # If we need to reorganize after finding all languages
                 move_files_to_language_folders(output_dir, languages)
             else:
-                logging.warning("No languages detected. Defaulting to specified languages.")
+                logging.warning(
+                    "No languages detected. Defaulting to specified languages."
+                )
         except Exception as e:
             logging.error(f"Error detecting available languages: {e}")
             logging.warning("Defaulting to specified languages.")
@@ -890,14 +1064,20 @@ def download_transcripts_parallel(videos_data, languages, channel_name, download
         file_types.append("JSON")
 
     # Print a nice header for the download session
-    print(f"\n{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
+    print(f"\n{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
     print(f"{Fore.YELLOW}DOWNLOAD SESSION STARTED{Style.RESET_ALL}")
-    print(f"{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
-    logging.info(f"Downloading {Fore.CYAN}{', '.join(file_types)}{Style.RESET_ALL} files in {Fore.CYAN}{len(languages)}{Style.RESET_ALL} language(s): {Fore.CYAN}{', '.join(languages)}{Style.RESET_ALL}")
-    logging.info(f"Rate limiting: {Fore.YELLOW}{delay}s{Style.RESET_ALL} delay between requests with {Fore.YELLOW}{workers}{Style.RESET_ALL} concurrent workers")
+    print(f"{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
+    logging.info(
+        f"Downloading {Fore.CYAN}{', '.join(file_types)}{Style.RESET_ALL} files in {Fore.CYAN}{len(languages)}{Style.RESET_ALL} language(s): {Fore.CYAN}{', '.join(languages)}{Style.RESET_ALL}"
+    )
+    logging.info(
+        f"Rate limiting: {Fore.YELLOW}{delay}s{Style.RESET_ALL} delay between requests with {Fore.YELLOW}{workers}{Style.RESET_ALL} concurrent workers"
+    )
     logging.info(f"Saving to directory: {Fore.CYAN}{output_dir}{Style.RESET_ALL}")
-    logging.info(f"Processing {Fore.GREEN}{len(videos_data)}{Style.RESET_ALL} videos...")
-    print(f"{Fore.CYAN}{'-'*80}{Style.RESET_ALL}")
+    logging.info(
+        f"Processing {Fore.GREEN}{len(videos_data)}{Style.RESET_ALL} videos..."
+    )
+    print(f"{Fore.CYAN}{'-' * 80}{Style.RESET_ALL}")
 
     # Track remaining tasks for reprocessing
     remaining_tasks = []
@@ -911,23 +1091,34 @@ def download_transcripts_parallel(videos_data, languages, channel_name, download
 
     # Create a progress tracker for the total tasks
     total_tasks = len(remaining_tasks)
-    progress_bar = tqdm(total=total_tasks, desc=f"{Fore.LIGHTBLACK_EX}Overall progress{Style.RESET_ALL}",
-                         bar_format='{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]',
-                         colour='cyan')
+    progress_bar = tqdm(
+        total=total_tasks,
+        desc=f"{Fore.LIGHTBLACK_EX}Overall progress{Style.RESET_ALL}",
+        bar_format="{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
+        colour="cyan",
+    )
     progress_bar.update(0)
 
     while remaining_tasks:
         # Check if we need to adjust rate limiting due to bans
         if ban_detected:
-            current_delay, current_workers = adjust_rate_for_ban_recovery(current_delay, current_workers)
-            logging.info(f"Adjusted rate limiting: {Fore.YELLOW}{current_delay}s{Style.RESET_ALL} delay with {Fore.YELLOW}{current_workers}{Style.RESET_ALL} workers")
+            current_delay, current_workers = adjust_rate_for_ban_recovery(
+                current_delay, current_workers
+            )
+            logging.info(
+                f"Adjusted rate limiting: {Fore.YELLOW}{current_delay}s{Style.RESET_ALL} delay with {Fore.YELLOW}{current_workers}{Style.RESET_ALL} workers"
+            )
 
         # Take a subset of tasks based on current worker count
-        batch_size = min(len(remaining_tasks), 100)  # Process in batches of 100 or fewer
+        batch_size = min(
+            len(remaining_tasks), 100
+        )  # Process in batches of 100 or fewer
         current_batch = remaining_tasks[:batch_size]
 
         # Process videos with limited concurrency
-        with concurrent.futures.ThreadPoolExecutor(max_workers=current_workers) as executor:
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=current_workers
+        ) as executor:
             # Submit tasks for current batch
             future_to_task = {}
             for video, lang in current_batch:
@@ -939,11 +1130,13 @@ def download_transcripts_parallel(videos_data, languages, channel_name, download
                     use_language_folders,
                     download_txt,
                     download_json,
-                    current_delay
+                    current_delay,
                 )
                 future_to_task[future] = (video, lang)
 
-            logging.info(f"Processing batch of {Fore.CYAN}{len(future_to_task)}{Style.RESET_ALL} tasks with {Fore.CYAN}{current_workers}{Style.RESET_ALL} workers...")
+            logging.info(
+                f"Processing batch of {Fore.CYAN}{len(future_to_task)}{Style.RESET_ALL} tasks with {Fore.CYAN}{current_workers}{Style.RESET_ALL} workers..."
+            )
 
             # Process results as they complete
             completed_tasks = []
@@ -954,37 +1147,67 @@ def download_transcripts_parallel(videos_data, languages, channel_name, download
                 try:
                     result = future.result()
 
-                    if result['success']:
-                        if result.get('skipped', False):
+                    if result["success"]:
+                        if result.get("skipped", False):
                             # Successfully skipped
-                            title_display = result['title'][:40] + "..." if len(result['title']) > 40 else result['title']
-                            print(f"[{Fore.CYAN}SKIP{Style.RESET_ALL}] {title_display} ({lang})")
+                            title_display = (
+                                result["title"][:40] + "..."
+                                if len(result["title"]) > 40
+                                else result["title"]
+                            )
+                            print(
+                                f"[{Fore.CYAN}SKIP{Style.RESET_ALL}] {title_display} ({lang})"
+                            )
                             skipped += 1
                         else:
                             # Successfully downloaded
-                            title_display = result['title'][:40] + "..." if len(result['title']) > 40 else result['title']
-                            print(f"[{Fore.GREEN}OK{Style.RESET_ALL}  ] {title_display} ({lang})")
+                            title_display = (
+                                result["title"][:40] + "..."
+                                if len(result["title"]) > 40
+                                else result["title"]
+                            )
+                            print(
+                                f"[{Fore.GREEN}OK{Style.RESET_ALL}  ] {title_display} ({lang})"
+                            )
                             successful += 1
                     else:
                         # Failed
-                        title_display = result['title'][:40] + "..." if len(result['title']) > 40 else result['title']
-                        error_msg = result.get('error', 'Unknown error')
+                        title_display = (
+                            result["title"][:40] + "..."
+                            if len(result["title"]) > 40
+                            else result["title"]
+                        )
+                        error_msg = result.get("error", "Unknown error")
                         if "no transcript available" in error_msg.lower():
-                            print(f"[{Fore.YELLOW}MISS{Style.RESET_ALL}] {title_display} ({lang}) - {error_msg}")
+                            print(
+                                f"[{Fore.YELLOW}MISS{Style.RESET_ALL}] {title_display} ({lang}) - {error_msg}"
+                            )
                         else:
-                            print(f"[{Fore.RED}FAIL{Style.RESET_ALL}] {title_display} ({lang}) - {error_msg}")
+                            print(
+                                f"[{Fore.RED}FAIL{Style.RESET_ALL}] {title_display} ({lang}) - {error_msg}"
+                            )
                         failed += 1
 
                     # Update the progress bar
                     progress_bar.update(1)
-                    progress_bar.set_postfix({'✓': successful, '↺': skipped, '✗': failed})
+                    progress_bar.set_postfix(
+                        {"✓": successful, "↺": skipped, "✗": failed}
+                    )
 
                 except Exception as e:
-                    title_display = video['title'][:40] + "..." if len(video['title']) > 40 else video['title']
-                    print(f"[{Fore.RED}ERR{Style.RESET_ALL} ] {title_display} ({lang}) - {str(e)}")
+                    title_display = (
+                        video["title"][:40] + "..."
+                        if len(video["title"]) > 40
+                        else video["title"]
+                    )
+                    print(
+                        f"[{Fore.RED}ERR{Style.RESET_ALL} ] {title_display} ({lang}) - {str(e)}"
+                    )
                     failed += 1
                     progress_bar.update(1)
-                    progress_bar.set_postfix({'✓': successful, '↺': skipped, '✗': failed})
+                    progress_bar.set_postfix(
+                        {"✓": successful, "↺": skipped, "✗": failed}
+                    )
 
         # Remove completed tasks from remaining
         for task in completed_tasks:
@@ -997,13 +1220,17 @@ def download_transcripts_parallel(videos_data, languages, channel_name, download
             mins = int(wait_time // 60)
             secs = int(wait_time % 60)
 
-            print(f"\n{Fore.RED}⚠️  Rate limit detected. Pausing for {mins}m {secs}s before continuing...{Style.RESET_ALL}")
+            print(
+                f"\n{Fore.RED}⚠️  Rate limit detected. Pausing for {mins}m {secs}s before continuing...{Style.RESET_ALL}"
+            )
 
             # Create a countdown timer
-            for remaining in tqdm(range(int(wait_time), 0, -1),
-                                 desc=f"{Fore.YELLOW}Waiting for rate limit to reset{Style.RESET_ALL}",
-                                 bar_format='{desc}: {bar} {n_fmt}s',
-                                 colour='yellow'):
+            for remaining in tqdm(
+                range(int(wait_time), 0, -1),
+                desc=f"{Fore.YELLOW}Waiting for rate limit to reset{Style.RESET_ALL}",
+                bar_format="{desc}: {bar} {n_fmt}s",
+                colour="yellow",
+            ):
                 time.sleep(1)
 
             ban_recovery_time = time.time()  # Mark recovery start time
@@ -1012,9 +1239,9 @@ def download_transcripts_parallel(videos_data, languages, channel_name, download
     progress_bar.close()
 
     # Print summary with color
-    print(f"\n{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
+    print(f"\n{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
     print(f"{Fore.LIGHTBLACK_EX}DOWNLOAD SUMMARY FOR: {channel_name}{Style.RESET_ALL}")
-    print(f"{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
     print(f"{Fore.GREEN}✓ Downloaded: {successful}{Style.RESET_ALL}")
     print(f"{Fore.CYAN}↺ Skipped (already exist): {skipped}{Style.RESET_ALL}")
     print(f"{Fore.RED}✗ Failed: {failed}{Style.RESET_ALL}")
@@ -1022,13 +1249,18 @@ def download_transcripts_parallel(videos_data, languages, channel_name, download
     if use_language_folders:
         folder_structure = f"Transcripts organized in language folders under: {Fore.CYAN}{output_dir}{Style.RESET_ALL}"
     else:
-        folder_structure = f"Transcripts saved in: {Fore.CYAN}{output_dir}{Style.RESET_ALL}"
+        folder_structure = (
+            f"Transcripts saved in: {Fore.CYAN}{output_dir}{Style.RESET_ALL}"
+        )
     print(folder_structure)
-    print(f"{Fore.CYAN}{'-'*80}{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{'-' * 80}{Style.RESET_ALL}")
 
     return successful, skipped, failed
 
-def process_channel(channel_url, languages, download_all, download_txt, download_json, delay, workers):
+
+def process_channel(
+    channel_url, languages, download_all, download_txt, download_json, delay, workers
+):
     """Process a single channel."""
     # Get channel name for directory creation
     channel_name = get_channel_name(channel_url)
@@ -1049,41 +1281,52 @@ def process_channel(channel_url, languages, download_all, download_txt, download
         download_txt,
         download_json,
         delay,
-        workers
+        workers,
     )
+
 
 def main():
     # Clear screen for better presentation
-    os.system('cls' if os.name == 'nt' else 'clear')
+    os.system("cls" if os.name == "nt" else "clear")
 
     # Display logo
     display_logo()
 
     # Parse arguments
     try:
-        urls, languages, download_all, download_txt, download_json, delay, workers = parse_arguments()
+        urls, languages, download_all, download_txt, download_json, delay, workers = (
+            parse_arguments()
+        )
     except Exception as e:
         logging.error(f"Error parsing arguments: {e}")
         display_help()
         sys.exit(1)
 
-    print(f"{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
     print(f"{Fore.YELLOW}SESSION CONFIGURATION{Style.RESET_ALL}")
-    print(f"{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
 
     if download_all:
-        logging.info(f"Processing {Fore.CYAN}{len(urls)}{Style.RESET_ALL} channels with {Fore.GREEN}ALL available languages{Style.RESET_ALL}")
+        logging.info(
+            f"Processing {Fore.CYAN}{len(urls)}{Style.RESET_ALL} channels with {Fore.GREEN}ALL available languages{Style.RESET_ALL}"
+        )
     else:
-        logging.info(f"Processing {Fore.CYAN}{len(urls)}{Style.RESET_ALL} channels with languages: {Fore.CYAN}{', '.join(languages)}{Style.RESET_ALL}")
+        logging.info(
+            f"Processing {Fore.CYAN}{len(urls)}{Style.RESET_ALL} channels with languages: {Fore.CYAN}{', '.join(languages)}{Style.RESET_ALL}"
+        )
 
     file_types = []
     if download_txt:
         file_types.append("TXT")
     if download_json:
         file_types.append("JSON")
-    logging.info(f"File types to download: {Fore.CYAN}{', '.join(file_types)}{Style.RESET_ALL}")
-    logging.info(f"Rate limiting: {Fore.YELLOW}{delay}s{Style.RESET_ALL} delay between requests, {Fore.YELLOW}{workers}{Style.RESET_ALL} concurrent workers")
-    print(f"{Fore.CYAN}{'-'*80}{Style.RESET_ALL}")
+    logging.info(
+        f"File types to download: {Fore.CYAN}{', '.join(file_types)}{Style.RESET_ALL}"
+    )
+    logging.info(
+        f"Rate limiting: {Fore.YELLOW}{delay}s{Style.RESET_ALL} delay between requests, {Fore.YELLOW}{workers}{Style.RESET_ALL} concurrent workers"
+    )
+    print(f"{Fore.CYAN}{'-' * 80}{Style.RESET_ALL}")
 
     total_downloaded = 0
     total_skipped = 0
@@ -1091,11 +1334,11 @@ def main():
 
     # Process each channel
     for i, url in enumerate(urls):
-        print(f"\n{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
-        print(f"{Fore.YELLOW}CHANNEL {i+1}/{len(urls)}{Style.RESET_ALL}")
-        print(f"{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
+        print(f"\n{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}CHANNEL {i + 1}/{len(urls)}{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
         logging.info(f"Processing: {Fore.CYAN}{url}{Style.RESET_ALL}")
-        print(f"{Fore.CYAN}{'-'*80}{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}{'-' * 80}{Style.RESET_ALL}")
 
         try:
             downloaded, skipped, failed = process_channel(
@@ -1105,7 +1348,7 @@ def main():
                 download_txt,
                 download_json,
                 delay,
-                workers
+                workers,
             )
             total_downloaded += downloaded
             total_skipped += skipped
@@ -1115,12 +1358,16 @@ def main():
 
     # Print overall summary for multiple channels
     if len(urls) > 1:
-        print(f"\n{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
+        print(f"\n{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
         print(f"{Fore.GREEN}OVERALL SUMMARY{Style.RESET_ALL}")
-        print(f"{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
         print(f"{Fore.CYAN}Total channels processed: {len(urls)}{Style.RESET_ALL}")
-        print(f"{Fore.GREEN}✓ Total files downloaded: {total_downloaded}{Style.RESET_ALL}")
-        print(f"{Fore.CYAN}↺ Total files skipped (already exist): {total_skipped}{Style.RESET_ALL}")
+        print(
+            f"{Fore.GREEN}✓ Total files downloaded: {total_downloaded}{Style.RESET_ALL}"
+        )
+        print(
+            f"{Fore.CYAN}↺ Total files skipped (already exist): {total_skipped}{Style.RESET_ALL}"
+        )
         print(f"{Fore.RED}✗ Total files failed: {total_failed}{Style.RESET_ALL}")
 
         # Add a graphical representation of the results
@@ -1140,10 +1387,15 @@ def main():
             skip_width = int(bar_width * skip_percent / 100)
             fail_width = bar_width - dl_width - skip_width
 
-            print(f"[{Fore.GREEN}{dl_width * '■'}{Fore.CYAN}{skip_width * '■'}{Fore.RED}{fail_width * '■'}{Style.RESET_ALL}]")
-            print(f"{Fore.GREEN}■ Downloaded ({dl_percent}%){Style.RESET_ALL} {Fore.CYAN}■ Skipped ({skip_percent}%){Style.RESET_ALL} {Fore.RED}■ Failed ({fail_percent}%){Style.RESET_ALL}")
+            print(
+                f"[{Fore.GREEN}{dl_width * '■'}{Fore.CYAN}{skip_width * '■'}{Fore.RED}{fail_width * '■'}{Style.RESET_ALL}]"
+            )
+            print(
+                f"{Fore.GREEN}■ Downloaded ({dl_percent}%){Style.RESET_ALL} {Fore.CYAN}■ Skipped ({skip_percent}%){Style.RESET_ALL} {Fore.RED}■ Failed ({fail_percent}%){Style.RESET_ALL}"
+            )
 
-        print(f"{Fore.CYAN}{'='*80}{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
+
 
 if __name__ == "__main__":
     try:
