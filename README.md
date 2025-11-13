@@ -1,6 +1,3 @@
-
----
-
 # YouTube Channel Transcript Downloader
 
 ## Requirements
@@ -10,12 +7,14 @@
 ## Setup
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/yourusername/Youtube-Channel-Transcription-Downloader.git
    cd Youtube-Channel-Transcription-Downloader
    ```
 
 2. **Create and activate a virtual environment**
+
    ```bash
    # On Windows
    python -m venv venv
@@ -27,6 +26,7 @@
    ```
 
 3. **Install the required packages**
+
    ```bash
    pip install -r requirements.txt
    ```
@@ -56,50 +56,73 @@ python Youtube.Transcribe.py [options] <channel_or_video_url(s)>
 ## Examples
 
 - **Download transcript for a single YouTube video**
+
   ```bash
   python Youtube.Transcribe.py https://www.youtube.com/watch?v=dQw4w9WgXcQ -en
   ```
+
 - **Short URL also works**
+
   ```bash
   python Youtube.Transcribe.py https://youtu.be/dQw4w9WgXcQ -en
   ```
+
 - **Multiple URLs**
+
   ```bash
   python Youtube.Transcribe.py https://youtu.be/aDkzgTWhVY4 https://youtu.be/3ZC1iqYfFGU -en
   ```
+
 - **Download English transcripts from a channel**
+
   ```bash
   python Youtube.Transcribe.py https://www.youtube.com/channel/UC-lHJZR3Gqxm24_Vd_AJ5Yw -en
   ```
+
 - **Download multiple languages**
+
   ```bash
   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -es -fr
   ```
+
 - **Download all available languages**
+
   ```bash
   python Youtube.Transcribe.py https://youtube.com/c/channel1 -all
   ```
+
 - **Download only TXT files (no JSON)**
+
   ```bash
   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -txt
   ```
+
 - **Download only JSON files (no TXT)**
+
   ```bash
   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -json
   ```
+
 - **Faster downloads (may increase risk of IP ban)**
+
   ```bash
   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -delay 1 -workers 5
   ```
+
 - **Slower, safer downloads (to prevent IP bans)**
+
   ```bash
   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -delay 3 -workers 2
   ```
+
 - **Download from multiple channels**
+
   ```bash
   python Youtube.Transcribe.py https://youtube.com/c/channel1 https://youtube.com/c/channel2 -en
   ```
+
 - **Download from channels listed in a file (one URL per line or comma-separated)**
+
   ```bash
   python Youtube.Transcribe.py -f channels.lst -en
   ```
@@ -142,17 +165,20 @@ To avoid YouTube IP bans, this script implements several protection measures:
 Files are organized based on languages detected and requested:
 
 - **Single language mode** (when only one language exists or is requested):
-  ```
+
+  ```text
   ./transcripts/[Channel Name]/json/[Video Title]_[VideoID]_[lang].json
   ./transcripts/[Channel Name]/[Video Title]_[VideoID]_[lang].txt
   ```
+
 - **Multiple language mode** (triggered when):
   - Multiple languages are requested in the command
   - Multiple languages already exist in the folder
   - A new language is requested that doesn't match existing files
 
   In this mode, files are organized as:
-  ```
+
+  ```text
   ./transcripts/[Channel Name]/[lang]/json/[Video Title]_[VideoID]_[lang].json
   ./transcripts/[Channel Name]/[lang]/[Video Title]_[VideoID]_[lang].txt
   ```
@@ -173,7 +199,8 @@ The channel URL file can contain URLs in any of these formats:
 - Comma with spaces between URLs
 
 Example file content:
-```
+
+```text
 https://youtube.com/channel/UC123, https://youtube.com/c/channel2
 https://youtube.com/user/someuser
 ```
@@ -193,5 +220,3 @@ https://youtube.com/user/someuser
 - `-hu`      - Hungarian                  - `-bg`      - Bulgarian                  - `-hr`      - Croatian
 - `-sk`      - Slovak                     - `-lt`      - Lithuanian                 - `-sl`      - Slovenian
 - `-et`      - Estonian                   - `-lv`      - Latvian
-
----
