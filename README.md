@@ -41,24 +41,45 @@ All requirements are listed in `pyproject.toml` and `requirements.txt`.
    cd Youtube-Channel-Transcription-Downloader
    ```
 
-2. **Install dependencies with UV**
+2. **Install uv if you haven't already**
 
    ```bash
-   # Install uv if you haven't already
    curl -LsSf https://astral.sh/uv/install.sh | sh
-   
-   # Install all dependencies
-   uv sync
    ```
 
-3. **Run the application**
+3. **Create a virtual environment and install dependencies**
+
+   ```bash
+   uv venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   uv pip install -r requirements.txt
+   ```
+
+4. **Update the virtual environment** (important for YouTube compatibility)
+
+   ```bash
+   uv venv
+   source .venv/bin/activate
+   uv pip install --upgrade certifi charset-normalizer idna requests urllib3 youtube-transcript-api yt-dlp
+   uv pip install --upgrade $(grep -v '^#' requirements.txt | cut -d= -f1)
+   uv pip freeze > requirements.txt
+   uv pip list --outdated
+   ```
+
+   **Why these updates are crucial:**
+   - **yt-dlp**: YouTube frequently changes their API and website structure. Keeping yt-dlp up-to-date is essential for the script to continue working with YouTube
+   - **youtube-transcript-api**: YouTube's transcript system also changes regularly
+   - **uv pip list --outdated**: Shows you which packages need updates so you can stay current
+   - **uv pip freeze > requirements.txt**: Updates your requirements file with the latest working versions
+
+5. **Run the application**
 
    ```bash
    # Create configuration
-   uv run python Youtube.Transcribe.py --create-config
+   python Youtube.Transcribe.py --create-config
    
    # Download transcripts
-   uv run python Youtube.Transcribe.py https://youtube.com/c/channel1 -en
+   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en
    ```
 
 ### Option 2: Using pip (Traditional)
