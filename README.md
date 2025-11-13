@@ -23,6 +23,17 @@ The v2 version (`Youtube.Transcribe.py`) features:
 - **Improved Error Handling**: More robust error management
 - **Flexible Configuration**: Override settings via environment variables
 
+## 🚀 Future Ideas
+
+Interested in where this project could go next? Check out **[IDEAS.md](IDEAS.md)** to see:
+
+- Potential API server mode for programmatic access
+- Web dashboard concepts
+- Enhanced CLI features
+- Performance improvements
+
+*These are exploratory ideas - not committed features. Community feedback welcome!*
+
 ## Requirements
 
 - Python 3.11+
