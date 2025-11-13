@@ -116,7 +116,9 @@ All requirements are listed in `pyproject.toml` and `requirements.txt`.
    python Youtube.Transcribe.py https://youtube.com/c/channel1 -en
    ```
 
-### Quick Start with v2
+## Quick Start
+
+Get up and running in 3 simple steps:
 
 1. **Create default configuration**:
 
@@ -134,95 +136,11 @@ All requirements are listed in `pyproject.toml` and `requirements.txt`.
 
 ## Usage
 
-### Version 2.0 (Recommended)
-
 ```bash
 uv run python Youtube.Transcribe.py [options] <channel_or_video_url(s)>
 ```
 
-### Version 1.0 (Original)
-
-```bash
-python Youtube.Transcribe.py [options] <channel_or_video_url(s)>
-```
-
-## Development Setup
-
-This project uses pre-commit hooks to maintain code quality and consistency. These hooks automatically check your code for style issues, formatting, and potential bugs before each commit.
-
-### Why Use Pre-commit Hooks?
-
-Pre-commit hooks help you:
-
-- Catch errors before they're committed
-- Maintain consistent code style across the project
-- Automatically format your code
-- Prevent common issues like trailing whitespace or large files
-- Ensure type safety with static type checking
-
-### Prerequisites
-
-- Python 3.8+
-- `uv` package manager (faster alternative to pip)
-
-### Installation
-
-1. **Install pre-commit using uv**:
-
-   ```bash
-   uv pip install pre-commit
-   ```
-
-2. **Install the git hooks**:
-
-   ```bash
-   uv run pre-commit install
-   ```
-
-   This sets up the hooks to run automatically on every `git commit`.
-
-3. **Run the hooks manually** (optional):
-
-   ```bash
-   uv run pre-commit run --all-files
-   ```
-
-   This will run all checks on your entire codebase.
-
-### What Each Hook Does
-
-- **Black**: Automatically formats your Python code to be consistent
-- **isort**: Sorts your Python imports in a standard way
-- **Ruff**: A fast linter that catches common errors and style issues
-- **mypy**: Static type checker that helps catch type-related bugs
-- **File validators**: Check YAML, JSON, and TOML files for syntax errors
-- **Basic checks**: Ensure consistent line endings, no trailing whitespace, etc.
-
-### First Time Setup
-
-The first time you run the hooks, they will install their required environments. This might take a minute or two. Subsequent runs will be much faster.
-
-### Fixing Issues
-
-If a hook finds issues:
-
-1. Many issues can be fixed automatically. The hook will tell you if it can fix them.
-2. For other issues, the hook will show you exactly what needs to be fixed and where.
-3. After fixing the issues, stage your changes and try committing again.
-
-### Skipping Hooks (When Needed)
-
-If you need to skip the hooks for a single commit (not recommended for regular use):
-
-```bash
-git commit --no-verify -m "Your commit message"
-```
-
-Remember: The pre-commit hooks are there to help maintain code quality, so please try to fix any issues they find rather than skipping them.
-
 ## Examples
-
-### Version 2.0 Examples
 
 - **Download transcript for a single YouTube video**
 
@@ -260,53 +178,7 @@ Remember: The pre-commit hooks are there to help maintain code quality, so pleas
   uv run python Youtube.Transcribe.py --create-config
   ```
 
-### Version 1.0 Examples (Original)
-
-- **Download transcript for a single YouTube video**
-
-  ```bash
-  python Youtube.Transcribe.py https://www.youtube.com/watch?v=dQw4w9WgXcQ -en
-  ```
-
-- **Download English transcripts from a channel**
-
-  ```bash
-  python Youtube.Transcribe.py https://www.youtube.com/channel/UC-lHJZR3Gqxm24_Vd_AJ5Yw -en
-  ```
-
-- **Download multiple languages**
-
-  ```bash
-  python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -es -fr
-  ```
-
-- **Download all available languages**
-
-  ```bash
-  python Youtube.Transcribe.py https://youtube.com/c/channel1 -all
-  ```
-
-- **Download only TXT files (no JSON)**
-
-  ```bash
-  python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -txt
-  ```
-
-- **Faster downloads (may increase risk of IP ban)**
-
-  ```bash
-  python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -delay 1 -workers 5
-  ```
-
-- **Download from channels listed in a file**
-
-  ```bash
-  python Youtube.Transcribe.py -f channels.lst -en
-  ```
-
 ## Options
-
-### Version 2.0 Options
 
 - `-f, --file FILE`    Read channel URLs from a text file (one per line or comma-separated)
 - `--create-config`    Create default config.toml file
@@ -319,152 +191,150 @@ Remember: The pre-commit hooks are there to help maintain code quality, so pleas
 - `-workers N`         Number of concurrent downloads (default: 3, range: 1-10). Lower values reduce risk of IP bans but slow downloads
 - `-h, --help`         Show help message
 
-### Version 1.0 Options (Original)
+## Configuration
 
-- `-f, --file FILE`    Read channel URLs from a text file (one per line or comma-separated)
-- `-LANG`              Language code for transcripts (e.g., `-en` for English). Multiple language codes can be specified (e.g., `-en -es -fr`)
-- `-all`               Download all available languages for each video
-- `-txt`               Download only TXT files (no JSON)
-- `-json`              Download only JSON files (no TXT)
-- `-delay N`           Delay between API requests in seconds (default: 1.5). Higher values reduce risk of IP bans but slow downloads
-- `-workers N`         Number of concurrent downloads (default: 3, range: 1-10). Lower values reduce risk of IP bans but slow downloads
-- `-h, --help`         Show help message
-
-## Configuration (v2)
-
-The v2 version uses a `config.toml` file for easy configuration management:
+The script uses a `config.toml` file for easy configuration management:
 
 ### Creating Configuration
 
-```bash
-# Create default config file
-python Youtube.Transcribe.py --create-config
-
-# View current configuration
-python Youtube.Transcribe.py --show-config
-```
+   ```bash
+   # Create default config file
+   python Youtube.Transcribe.py --create-config
+   python Youtube.Transcribe.py --show-config
+   ```
 
 ### Configuration Sections
 
-**[rate_limiting]** - Control download speed and safety:
+The config file is organized into logical sections:
 
-- `base_delay`: Delay between requests (seconds)
-- `max_workers`: Concurrent downloads (1-10)
-- `strategy`: "conservative", "balanced", or "aggressive"
-
-**[file_handling]** - Control file organization:
-
-- `output_dir`: Where to save transcripts
-- `use_language_folders`: Organize by language
-- `download_formats`: ["txt"], ["json"], or both
-
-**[ui_settings]** - Control the interface:
-
-- `show_progress`: Show progress bars
-- `clear_screen`: Clear screen on startup
-- `color_scheme`: Visual theme
-
-**[advanced]** - Power user settings:
-
-- `enable_cache`: Cache API responses
-- `log_level`: Logging verbosity
-- `log_file`: Save logs to file
+- **rate_limiting**: Controls request delays, workers, and ban recovery
+- **file_handling**: Manages output directories and file formats
+- **api_settings**: Configures timeouts and batch processing
+- **ui_settings**: Controls progress bars and visual feedback
+- **advanced**: Cache, logging, and performance options
 
 ### Environment Variables
 
-Override config with environment variables:
+You can override any configuration setting using environment variables:
 
-- `YTD_DELAY`: Set base delay
-- `YTD_WORKERS`: Set worker count
-- `YTD_OUTPUT_DIR`: Set output directory
-- `YTD_LOG_LEVEL`: Set log level
-- `YTD_RATE_STRATEGY`: Set rate limiting strategy
-
-Example:
-
-```bash
-YTD_DELAY=3 YTD_WORKERS=2 python Youtube.Transcribe.py https://youtube.com/c/channel1 -en
-```
+   ```bash
+   YTD_DELAY=3 YTD_WORKERS=2 python Youtube.Transcribe.py https://youtube.com/c/channel1 -en
+   ```
 
 ## Rate Limiting
 
-To avoid YouTube IP bans, this script implements several protection measures:
+This script implements sophisticated rate limiting to avoid YouTube IP bans:
 
-1. Request delays: Controlled delay between API calls (adjust with `-delay`)
-2. Random jitter: ±20% randomness added to each delay to avoid pattern detection
-3. Limited concurrency: Restricted parallel downloads (adjust with `-workers`)
-4. Smart retries: Automatic detection of non-retryable errors (age-restricted videos, etc.)
-5. Exponential backoff: Increasingly longer delays after rate limit errors
-6. Error skipping: No retry for videos that cannot have transcripts (subtitles disabled, etc.)
+### Why Rate Limiting Matters
+
+YouTube monitors API requests and may temporarily block IPs that make too many requests too quickly. This script includes multiple protection mechanisms:
+
+### Protection Mechanisms
+
+- **Request Delays**: Configurable delays between requests with random jitter
+- **Concurrent Workers**: Limited parallel downloads to prevent overwhelming YouTube
+- **Smart Retries**: Automatic detection of retryable vs non-retryable errors
+- **Exponential Backoff**: Increasing delays after rate limit errors
+- **Ban Recovery**: Automatic adjustment of settings when bans are detected
 
 ### Recommended Settings
 
-- **Normal usage**: Default values (`-delay 1.5 -workers 3`)
-- **If IP banned**:
-  1. Switch to very slow settings (`-delay 5 -workers 1`) until ban is lifted
-  2. After ban is lifted, continue with these slow settings for 5-7 minutes
-  3. Then reduce to half your original speed (double delay, halve workers)
-  4. If banned again, repeat the halving process until bans stop permanently
+- **Normal usage**: Default values (1.5s delay, 3 workers)
+- **If IP banned**: Switch to very slow settings (5s delay, 1 worker) until ban is lifted
+- **After ban lifted**: Continue with slow settings for 5-7 minutes, then reduce to half speed
+- **Repeat halving** until bans stop permanently
 
-  Example: If original settings were `-delay 1 -workers 6`, after recovery use `-delay 2 -workers 3`, then `-delay 4 -workers 2` if banned again.
+## Troubleshooting
 
-## File Organization
+### Common Issues and Solutions
 
-Files are organized based on languages detected and requested:
+- **"No transcript available"**: The video doesn't have subtitles or they're disabled
+- **"Video unavailable"**: The video is private, deleted, or region-locked
+- **"Rate limited"**: YouTube is temporarily blocking your IP - wait 5-7 minutes
+- **"Age restricted"**: These videos require authentication and can't be processed
+- **"Subtitles disabled"**: The creator has disabled subtitles for this video
 
-- **Single language mode** (when only one language exists or is requested):
+### Performance Tips
 
-  ```text
-  ./transcripts/[Channel Name]/json/[Video Title]_[VideoID]_[lang].json
-  ./transcripts/[Channel Name]/[Video Title]_[VideoID]_[lang].txt
-  ```
+- **For large channels**: Start with conservative settings (3s delay, 2 workers)
+- **For quick tests**: Use faster settings (1s delay, 5 workers) but monitor for bans
+- **For batch processing**: Use the `-f` option to process multiple channels from a file
+- **Resume downloads**: The script automatically skips existing files
 
-- **Multiple language mode** (triggered when):
-  - Multiple languages are requested in the command
-  - Multiple languages already exist in the folder
-  - A new language is requested that doesn't match existing files
+## Contributing
 
-  In this mode, files are organized as:
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-  ```text
-  ./transcripts/[Channel Name]/[lang]/json/[Video Title]_[VideoID]_[lang].json
-  ./transcripts/[Channel Name]/[lang]/[Video Title]_[VideoID]_[lang].txt
-  ```
+### Development Setup
 
-## Notes
+This project uses pre-commit hooks to maintain code quality and consistency. These hooks automatically check your code for style issues, formatting, and potential bugs before each commit.
 
-- If no language is specified, your system language will be used
-- If system language cannot be determined, English will be used
-- Use Ctrl+C to properly terminate the script
-- The script will automatically reorganize files when switching to multiple language mode
+#### Why Use Pre-commit Hooks?
 
-## File Format
+Pre-commit hooks help you:
 
-The channel URL file can contain URLs in any of these formats:
+- Catch errors before they're committed
+- Maintain consistent code style across the project
+- Automatically format your code
+- Prevent common issues like trailing whitespace or large files
+- Ensure type safety with static type checking
 
-- One URL per line
-- Comma-separated URLs
-- Comma with spaces between URLs
+#### Prerequisites
 
-Example file content:
+- Python 3.8+
+- `uv` package manager (faster alternative to pip)
 
-```text
-https://youtube.com/channel/UC123, https://youtube.com/c/channel2
-https://youtube.com/user/someuser
+#### Installation
+
+1. **Install pre-commit using uv**:
+
+   ```bash
+   uv pip install pre-commit
+   ```
+
+2. **Install the git hooks**:
+
+   ```bash
+   uv run pre-commit install
+   ```
+
+   This sets up the hooks to run automatically on every `git commit`.
+
+3. **Run the hooks manually** (optional):
+
+   ```bash
+   uv run pre-commit run --all-files
+   ```
+
+   This will run all checks on your entire codebase.
+
+#### What Each Hook Does
+
+- **Black**: Automatically formats your Python code to be consistent
+- **isort**: Sorts your Python imports in a standard way
+- **Ruff**: A fast linter that catches common errors and style issues
+- **mypy**: Static type checker that helps catch type-related bugs
+- **File validators**: Check YAML, JSON, and TOML files for syntax errors
+- **Basic checks**: Ensure consistent line endings, no trailing whitespace, etc.
+
+#### First Time Setup
+
+The first time you run the hooks, they will install their required environments. This might take a minute or two. Subsequent runs will be much faster.
+
+#### Fixing Issues
+
+If a hook finds issues:
+
+1. Many issues can be fixed automatically. The hook will tell you if it can fix them.
+2. For other issues, the hook will show you exactly what needs to be fixed and where.
+3. After fixing the issues, stage your changes and try committing again.
+
+#### Skipping Hooks (When Needed)
+
+If you need to skip the hooks for a single commit (not recommended for regular use):
+
+```bash
+git commit --no-verify -m "Your commit message"
 ```
 
-## Available Language Codes
-
-- `-en`      - English                    - `-es`      - Spanish                    - `-fr`      - French
-- `-de`      - German                     - `-it`      - Italian                    - `-pt`      - Portuguese
-- `-ru`      - Russian                    - `-ja`      - Japanese                   - `-ko`      - Korean
-- `-zh-Hans` - Chinese (Simplified)       - `-zh-Hant` - Chinese (Traditional)      - `-ar`      - Arabic
-- `-hi`      - Hindi                      - `-bn`      - Bengali                    - `-nl`      - Dutch
-- `-sv`      - Swedish                    - `-tr`      - Turkish                    - `-pl`      - Polish
-- `-vi`      - Vietnamese                 - `-th`      - Thai                       - `-fa`      - Persian
-- `-id`      - Indonesian                 - `-uk`      - Ukrainian                  - `-cs`      - Czech
-- `-fi`      - Finnish                    - `-ro`      - Romanian                   - `-el`      - Greek
-- `-he`      - Hebrew                     - `-da`      - Danish                     - `-no`      - Norwegian
-- `-hu`      - Hungarian                  - `-bg`      - Bulgarian                  - `-hr`      - Croatian
-- `-sk`      - Slovak                     - `-lt`      - Lithuanian                 - `-sl`      - Slovenian
-- `-et`      - Estonian                   - `-lv`      - Latvian
+Remember: The pre-commit hooks are there to help maintain code quality, so please try to fix any issues they find rather than skipping them.
