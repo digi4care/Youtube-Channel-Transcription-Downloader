@@ -1,7 +1,7 @@
 # YouTube Channel Transcript Downloader
 
 > **Note**: This is an enhanced fork of the original project by [titusrugabunda](https://github.com/rugabunda).
-> The original project can be found at: https://github.com/rugabunda/youtube-transcript-downloader
+> The original project can be found at: <https://github.com/rugabunda/youtube-transcript-downloader>
 
 ## Credits
 
