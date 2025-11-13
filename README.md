@@ -46,78 +46,6 @@ The v2 version (`Youtube.Transcribe.py`) features:
 
 All requirements are listed in `pyproject.toml` and `requirements.txt`.
 
-## Development Setup
-
-This project uses pre-commit hooks to maintain code quality and consistency. These hooks automatically check your code for style issues, formatting, and potential bugs before each commit.
-
-### Why Use Pre-commit Hooks?
-
-Pre-commit hooks help you:
-
-- Catch errors before they're committed
-- Maintain consistent code style across the project
-- Automatically format your code
-- Prevent common issues like trailing whitespace or large files
-- Ensure type safety with static type checking
-
-### Prerequisites
-
-- Python 3.8+
-- `uv` package manager (faster alternative to pip)
-
-### Installation
-
-1. **Install pre-commit using uv**:
-
-   ```bash
-   uv pip install pre-commit
-   ```
-
-2. **Install the git hooks**:
-
-   ```bash
-   uv run pre-commit install
-   ```
-   This sets up the hooks to run automatically on every `git commit`.
-
-3. **Run the hooks manually** (optional):
-
-   ```bash
-   uv run pre-commit run --all-files
-   ```
-   This will run all checks on your entire codebase.
-
-### What Each Hook Does
-
-- **Black**: Automatically formats your Python code to be consistent
-- **isort**: Sorts your Python imports in a standard way
-- **Ruff**: A fast linter that catches common errors and style issues
-- **mypy**: Static type checker that helps catch type-related bugs
-- **File validators**: Check YAML, JSON, and TOML files for syntax errors
-- **Basic checks**: Ensure consistent line endings, no trailing whitespace, etc.
-
-### First Time Setup
-
-The first time you run the hooks, they will install their required environments. This might take a minute or two. Subsequent runs will be much faster.
-
-### Fixing Issues
-
-If a hook finds issues:
-
-1. Many issues can be fixed automatically. The hook will tell you if it can fix them.
-2. For other issues, the hook will show you exactly what needs to be fixed and where.
-3. After fixing the issues, stage your changes and try committing again.
-
-### Skipping Hooks (When Needed)
-
-If you need to skip the hooks for a single commit (not recommended for regular use):
-
-```bash
-git commit --no-verify -m "Your commit message"
-```
-
-Remember: The pre-commit hooks are there to help maintain code quality, so please try to fix any issues they find rather than skipping them.
-
 ## Setup
 
 ### Option 1: Using UV (Recommended)
@@ -196,6 +124,80 @@ uv run python Youtube.Transcribe.py [options] <channel_or_video_url(s)>
 ```bash
 python Youtube.Transcribe.py [options] <channel_or_video_url(s)>
 ```
+
+## Development Setup
+
+This project uses pre-commit hooks to maintain code quality and consistency. These hooks automatically check your code for style issues, formatting, and potential bugs before each commit.
+
+### Why Use Pre-commit Hooks?
+
+Pre-commit hooks help you:
+
+- Catch errors before they're committed
+- Maintain consistent code style across the project
+- Automatically format your code
+- Prevent common issues like trailing whitespace or large files
+- Ensure type safety with static type checking
+
+### Prerequisites
+
+- Python 3.8+
+- `uv` package manager (faster alternative to pip)
+
+### Installation
+
+1. **Install pre-commit using uv**:
+
+   ```bash
+   uv pip install pre-commit
+   ```
+
+2. **Install the git hooks**:
+
+   ```bash
+   uv run pre-commit install
+   ```
+
+   This sets up the hooks to run automatically on every `git commit`.
+
+3. **Run the hooks manually** (optional):
+
+   ```bash
+   uv run pre-commit run --all-files
+   ```
+
+   This will run all checks on your entire codebase.
+
+### What Each Hook Does
+
+- **Black**: Automatically formats your Python code to be consistent
+- **isort**: Sorts your Python imports in a standard way
+- **Ruff**: A fast linter that catches common errors and style issues
+- **mypy**: Static type checker that helps catch type-related bugs
+- **File validators**: Check YAML, JSON, and TOML files for syntax errors
+- **Basic checks**: Ensure consistent line endings, no trailing whitespace, etc.
+
+### First Time Setup
+
+The first time you run the hooks, they will install their required environments. This might take a minute or two. Subsequent runs will be much faster.
+
+### Fixing Issues
+
+If a hook finds issues:
+
+1. Many issues can be fixed automatically. The hook will tell you if it can fix them.
+2. For other issues, the hook will show you exactly what needs to be fixed and where.
+3. After fixing the issues, stage your changes and try committing again.
+
+### Skipping Hooks (When Needed)
+
+If you need to skip the hooks for a single commit (not recommended for regular use):
+
+```bash
+git commit --no-verify -m "Your commit message"
+```
+
+Remember: The pre-commit hooks are there to help maintain code quality, so please try to fix any issues they find rather than skipping them.
 
 ## Examples
 
