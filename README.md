@@ -9,7 +9,7 @@
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/yourusername/Youtube-Channel-Transcription-Downloader.git
+   git clone https://github.com/digi4care/Youtube-Channel-Transcription-Downloader.git
    cd Youtube-Channel-Transcription-Downloader
    ```
 
