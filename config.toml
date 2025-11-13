@@ -1,0 +1,44 @@
+[rate_limiting]
+base_delay = 1.5
+max_workers = 3
+max_retries = 3
+retry_backoff_factor = 2.0
+jitter_percentage = 0.2
+ban_recovery_time = [ 300, 420,]
+
+[file_handling]
+output_dir = "./downloads"
+use_language_folders = true
+download_formats = [ "txt", "json",]
+sanitize_filenames = true
+
+[api_settings]
+api_timeout = 600
+batch_size = 100
+max_videos_per_channel = 0
+
+[ui_settings]
+show_progress = true
+clear_screen = true
+show_errors = true
+color_scheme = "default"
+
+[advanced]
+enable_cache = true
+cache_dir = "./cache"
+cache_expiry_hours = 24
+log_level = "INFO"
+log_file = ""
+
+[rate_limiting_strategies]
+strategy = "balanced"
+
+[performance]
+memory_usage = "medium"
+network_speed = "medium"
+cpu_cores = 0
+
+[rate_limiting_strategies.multipliers]
+conservative = 3.0
+balanced = 1.0
+aggressive = 0.5
