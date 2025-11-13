@@ -326,10 +326,10 @@ class YouTubeAPIAdapter:
     def download_transcript(self, video_id: str, language: str) -> Dict:
         """Download a single transcript"""
         try:
-            transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=[language])
+            transcript = YouTubeTranscriptApi().fetch(video_id, languages=[language])
             return {
                 "success": True,
-                "transcript": transcript,
+                "transcript": transcript.to_raw_data(),
                 "language": language
             }
         except _errors.NoTranscriptFound:
