@@ -23,22 +23,6 @@ The v2 version (`Youtube.Transcribe.py`) features:
 - **Improved Error Handling**: More robust error management
 - **Flexible Configuration**: Override settings via environment variables
 
-### Quick Start with v2
-
-1. **Create default configuration**:
-
-   ```bash
-   python Youtube.Transcribe.py --create-config
-   ```
-
-2. **Edit `config.toml`** to customize settings like rate limiting, output formats, etc.
-
-3. **Run with your preferred configuration**:
-
-   ```bash
-   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en
-   ```
-
 ## Requirements
 
 - Python 3.11+
@@ -108,6 +92,22 @@ All requirements are listed in `pyproject.toml` and `requirements.txt`.
 
    ```bash
    python Youtube.Transcribe.py --create-config
+   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en
+   ```
+
+### Quick Start with v2
+
+1. **Create default configuration**:
+
+   ```bash
+   python Youtube.Transcribe.py --create-config
+   ```
+
+2. **Edit `config.toml`** to customize settings like rate limiting, output formats, etc.
+
+3. **Run with your preferred configuration**:
+
+   ```bash
    python Youtube.Transcribe.py https://youtube.com/c/channel1 -en
    ```
 
