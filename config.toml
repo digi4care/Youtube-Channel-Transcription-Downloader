@@ -2,6 +2,7 @@
 download_formats = [ "txt", "json",]
 use_language_folders = true
 sanitize_filenames = true
+output_dir = "./downloads"
 default_language = "en"
 auto_detect_language = true
 language_priority = [ "en",]
@@ -9,7 +10,7 @@ concurrent_workers = 3
 batch_size = 100
 max_videos_per_channel = 0
 organize_existing = true
-timestamp_prefix_format = ""
+timestamp_prefix_format = "%Y%m%d_%H%M%S"
 overwrite_existing = false
 
 [rate_limiting]
@@ -45,7 +46,7 @@ network_speed = "medium"
 cpu_cores = 0
 
 [yt_dlp.options]
-output = "%(title)s [%(id)s].%(ext)s"
+output = "%(upload_date>%Y-%m-%d)s - %(title)s [%(id)s].%(ext)s"
 skip_download = true
 max_downloads = 0
 playlist_items = ""

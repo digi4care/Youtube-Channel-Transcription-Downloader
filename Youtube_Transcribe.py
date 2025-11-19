@@ -753,25 +753,31 @@ class FileManager:
 
         logging.info(f"{Fore.GREEN}File reorganization complete{Style.RESET_ALL}")
     
-    def save_transcript(self, transcript_data: List[Dict], video_info: Dict, 
+    def save_transcript(self, transcript_data: List[Dict], video_info: Dict,
                        language: str, output_dir: str, use_language_folders: bool) -> Dict:
         """Save transcript to file(s)"""
         results = {"saved_files": [], "skipped_files": []}
-        
+
         # Sanitize video title
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", video_info["title"])
-        
+
+        # Add timestamp prefix if configured
+        timestamp_prefix = ""
+        if self.config.transcripts.timestamp_prefix_format:
+            timestamp_prefix = datetime.now().strftime(self.config.transcripts.timestamp_prefix_format) + "_"
+
         # Determine file paths
         if use_language_folders:
             base_dir = os.path.join(output_dir, language)
         else:
             base_dir = output_dir
-        
+
         os.makedirs(base_dir, exist_ok=True)
-        
+
         # Save TXT format
         if "txt" in self.config.transcripts.download_formats:
-            txt_path = os.path.join(base_dir, f"{safe_title}_{language}.txt")
+            txt_filename = f"{timestamp_prefix}{safe_title}_{language}.txt"
+            txt_path = os.path.join(base_dir, txt_filename)
             if os.path.exists(txt_path):
                 results["skipped_files"].append(txt_path)
             else:
@@ -789,9 +795,10 @@ class FileManager:
                 json_base_dir = os.path.join(base_dir, "json")
             else:
                 json_base_dir = os.path.join(output_dir, "json")
-            
+
             os.makedirs(json_base_dir, exist_ok=True)
-            json_path = os.path.join(json_base_dir, f"{safe_title}_{language}.json")
+            json_filename = f"{timestamp_prefix}{safe_title}_{language}.json"
+            json_path = os.path.join(json_base_dir, json_filename)
             
             if os.path.exists(json_path):
                 results["skipped_files"].append(json_path)
