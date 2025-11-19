@@ -326,7 +326,7 @@ def process_videos(urls: List[str], config: Config):
 
 ### Directory Structure
 
-```
+```text
 downloads/
 ├── ChannelName/
 │   ├── en/                          # Language folder
@@ -343,21 +343,21 @@ downloads/
 
 **Without timestamp:**
 
-```
+```text
 {VideoTitle}_{LanguageCode}.{Extension}
 Example: "My Video Title_en.txt"
 ```
 
 **With timestamp:**
 
-```
+```text
 {YYYYMMDD_HHMMSS}_{VideoTitle}_{LanguageCode}.{Extension}
 Example: "20251119_143052_My Video Title_en.txt"
 ```
 
 **Timestamp format configurable:**
 
-```
+```text
 config: timestamp_prefix_format = "%Y%m%d_%H%M%S"
 ```
 
@@ -484,47 +484,47 @@ max_workers = 3
 
 ## Implementation Phases
 
-### Phase 1: Core Infrastructure
+### Phase 1: Core Infrastructure ✅
 
-- [ ] Refactor config system (new structure)
-- [ ] Implement config loading with priority order
-- [ ] Create yt-dlp flag translation system
-- [ ] Add command logging
+- [x] Refactor config system (new structure)
+- [x] Implement config loading with priority order
+- [x] Create yt-dlp flag translation system
+- [x] Add command logging
 
-### Phase 2: yt-dlp Integration
+### Phase 2: yt-dlp Integration ✅
 
-- [ ] Update video discovery logic
-- [ ] Pass output template to yt-dlp
-- [ ] Handle yt-dlp errors gracefully
-- [ ] Log all yt-dlp commands
+- [x] Update video discovery logic
+- [x] Pass output template to yt-dlp
+- [x] Handle yt-dlp errors gracefully
+- [x] Log all yt-dlp commands
 
-### Phase 3: Transcript Orchestration
+### Phase 3: Transcript Orchestration ✅
 
-- [ ] Update transcript download logic
-- [ ] Add language priority & fallback
-- [ ] Implement quality scoring
-- [ ] Add file organization
+- [x] Update transcript download logic
+- [x] Add language priority & fallback
+- [x] Implement quality scoring
+- [x] Add file organization
 
-### Phase 4: CLI Updates
+### Phase 4: CLI Updates ✅
 
-- [ ] Update argument parser
-- [ ] Add yt-dlp flag passthrough
-- [ ] Update help documentation
-- [ ] Add --create-config with new format
+- [x] Update argument parser
+- [x] Add yt-dlp flag passthrough
+- [x] Update help documentation
+- [x] Add --create-config with new format
 
-### Phase 5: Testing & Validation
+### Phase 5: Testing & Validation ✅
 
-- [ ] Write unit tests
-- [ ] Integration testing
-- [ ] Performance testing
-- [ ] Manual testing
+- [x] Write unit tests
+- [x] Integration testing
+- [x] Performance testing
+- [x] Manual testing
 
-### Phase 6: Documentation
+### Phase 6: Documentation ✅
 
-- [ ] Update README.md
-- [ ] Create config.toml examples
-- [ ] Document all CLI options
-- [ ] Add troubleshooting guide
+- [x] Update README.md
+- [x] Create config.toml examples
+- [x] Document all CLI options
+- [x] Add troubleshooting guide
 
 ---
 

@@ -1,0 +1,209 @@
+# ============================================================================
+# YOUTUBE CHANNEL TRANSCRIPT DOWNLOADER v2.0 - CONFIGURATION EXAMPLE
+# ============================================================================
+# This is an example configuration file. Copy it to config.toml and modify as needed.
+# Or run: uv run python Youtube_Transcribe.py --create-config
+#
+# Priority order (highest to lowest):
+# 1. CLI Flags
+# 2. Environment Variables (YTD_*)
+# 3. This config file (config.toml)
+# 4. yt-dlp defaults
+# 5. Application defaults
+# ============================================================================
+
+# ============================================================================
+# YT_DLP OPTIONS (passed directly to yt-dlp)
+# ============================================================================
+# Format: option_name → --option-name flag
+# Boolean options: set to true → add flag, false → omit flag
+
+[yt_dlp.options]
+# Output template for video files (yt-dlp --output)
+# Available fields: %(title)s, %(id)s, %(upload_date)s, %(channel)s, etc.
+# See yt-dlp documentation for full list of template fields
+output = "%(title)s [%(id)s].%(ext)s"
+
+# Video filtering
+skip_download = true              # --skip-download (transcripts only)
+max_downloads = 0                 # --max-downloads (0 = no limit)
+playlist_items = ""               # --playlist-items "1:10"
+
+# Download options
+concurrent_fragments = 1          # --concurrent-fragments N
+sleep_interval = 0.0              # --sleep-interval SECONDS (yt-dlp rate limiting)
+max_sleep_interval = 20           # --max-sleep-interval SECONDS
+retry_sleep = ""                  # --retry-sleep TYPE:EXPR
+
+# Format selection
+format = ""                       # --format FORMAT (e.g., "bestvideo+bestaudio/best")
+format_sort = ""                  # --format-sort SORTORDER
+
+# Output options
+restrict_filenames = false        # --restrict-filenames
+no_warnings = false               # --no-warnings
+
+# Logging
+verbose = false                   # --verbose (detailed output)
+quiet = false                     # --quiet (minimal output)
+
+# ============================================================================
+# TRANSCRIPT OPTIONS (YouTube-Channel-Transcription-Downloader specific)
+# ============================================================================
+# These options control transcript handling and orchestration
+
+[transcripts]
+# Download settings
+download_formats = ["txt", "json"]  # Available: txt, json, srt, vtt
+use_language_folders = true         # Create language-specific subdirectories
+sanitize_filenames = true           # Remove invalid characters from filenames
+output_dir = "./downloads"           # Base output directory
+
+# Language handling
+default_language = "en"             # Default language if none specified
+auto_detect_language = true         # Auto-detect system language
+language_priority = ["en"]          # Priority order for languages (fallback chain)
+
+# Batch processing
+concurrent_workers = 3              # Concurrent transcript downloads
+batch_size = 100                    # Videos to process per batch
+max_videos_per_channel = 0          # 0 = no limit, N = max N videos
+
+# File organization
+organize_existing = true            # Reorganize existing transcript files
+timestamp_prefix_format = ""        # For file versioning (e.g., "%Y%m%d_%H%M%S")
+overwrite_existing = false          # Skip if file exists
+
+# ============================================================================
+# RATE LIMITING & PERFORMANCE
+# ============================================================================
+# Rate limiting for transcript API (independent of yt-dlp)
+
+[rate_limiting]
+# Base delay between transcript requests (seconds)
+base_delay = 1.5
+
+# Number of concurrent workers for transcript downloads
+max_workers = 3
+
+# Retry settings
+max_retries = 3
+retry_backoff_factor = 2.0          # Exponential backoff multiplier
+jitter_percentage = 0.2             # Random delay variation (0.0-1.0)
+
+# Ban recovery (automatic rate limit detection)
+ban_recovery_time = [300, 420]      # Min/max seconds to wait after ban detection
+
+# Strategy settings
+rate_strategy = "balanced"          # conservative, balanced, aggressive
+strategy_multipliers = {            # Apply multipliers to base_delay
+    conservative = 3.0,
+    balanced = 1.0,
+    aggressive = 0.5
+}
+
+# ============================================================================
+# API SETTINGS
+# ============================================================================
+
+[api_settings]
+# YouTube Transcript API timeout
+api_timeout = 600                   # Seconds
+
+# Cache settings for transcript metadata
+enable_cache = true
+cache_dir = "./cache"
+cache_expiry_hours = 24
+
+# ============================================================================
+# USER INTERFACE
+# ============================================================================
+
+[ui]
+show_progress = true                # Show progress bars
+clear_screen = true                 # Clear screen on startup
+show_errors = true                  # Display error messages
+color_scheme = "default"            # Colorama color scheme
+
+# ============================================================================
+# LOGGING
+# ============================================================================
+
+[logging]
+level = "INFO"                      # DEBUG, INFO, WARNING, ERROR
+file = ""                          # Log file path (empty = console only)
+log_ytdlp_commands = true           # Log yt-dlp commands to file
+command_log_file = "ytdlp_commands.log"
+
+# ============================================================================
+# PERFORMANCE TUNING
+# ============================================================================
+
+[performance]
+memory_usage = "medium"             # low, medium, high
+network_speed = "medium"            # slow, medium, fast
+cpu_cores = 0                       # 0 = auto-detect, N = use N cores
+
+# ============================================================================
+# EXAMPLES
+# ============================================================================
+
+# Example 1: Basic usage with default settings
+# Just run: uv run python Youtube_Transcribe.py <URL> -en
+
+# Example 2: Conservative settings for large channels
+# [rate_limiting]
+# base_delay = 3.0
+# max_workers = 2
+# rate_strategy = "conservative"
+#
+# [transcripts]
+# concurrent_workers = 2
+# batch_size = 50
+
+# Example 3: Fast settings for testing (use with caution)
+# [rate_limiting]
+# base_delay = 0.5
+# max_workers = 5
+# rate_strategy = "aggressive"
+#
+# [transcripts]
+# concurrent_workers = 5
+# batch_size = 200
+
+# Example 4: Custom output template with timestamp
+# [yt_dlp.options]
+# output = "%(upload_date>%Y-%m-%d)s - %(title)s [%(id)s].%(ext)s"
+#
+# [transcripts]
+# timestamp_prefix_format = "%Y%m%d_%H%M%S"
+
+# Example 5: Download only specific formats
+# [transcripts]
+# download_formats = ["json"]  # Only JSON, no TXT
+
+# Example 6: Save to custom directory
+# [transcripts]
+# output_dir = "/path/to/my/transcripts"
+
+# ============================================================================
+# ENVIRONMENT VARIABLES
+# ============================================================================
+# You can also override settings using environment variables:
+#
+# YTD_OUTPUT="%(title)s.%(ext)s"
+# YTD_SKIP_DOWNLOAD=true
+# YTD_CONCURRENT_WORKERS=5
+# YTD_DEFAULT_LANGUAGE=es
+# YTD_BASE_DELAY=2.0
+# YTD_LOG_LEVEL=DEBUG
+#
+# Example:
+# YTD_CONCURRENT_WORKERS=5 uv run python Youtube_Transcribe.py <URL> -en
+
+# ============================================================================
+# ADDITIONAL RESOURCES
+# ============================================================================
+# - Full CLI reference: CLI_OPTIONS.md
+# - yt-dlp documentation: https://github.com/yt-dlp/yt-dlp
+# - GitHub repository: https://github.com/digi4care/Youtube-Channel-Transcription-Downloader
