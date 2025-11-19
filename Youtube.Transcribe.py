@@ -40,110 +40,298 @@ colorama_init(autoreset=True)
 
 
 @dataclass
-class DownloadConfig:
-    """Configuration class containing all application settings"""
-    
-    # Rate limiting settings
+class YTDLPOptions:
+    """yt-dlp configuration options (passed directly to yt-dlp)"""
+
+    # Output template for video files
+    output: str = "%(title)s [%(id)s].%(ext)s"
+
+    # Video filtering
+    skip_download: bool = True
+    max_downloads: int = 0
+    playlist_items: str = ""
+
+    # Download options
+    concurrent_fragments: int = 1
+    sleep_interval: float = 0.0
+    max_sleep_interval: int = 20
+    retry_sleep: str = ""
+
+    # Format selection
+    format: str = ""
+    format_sort: str = ""
+
+    # Output options
+    restrict_filenames: bool = False
+    no_warnings: bool = False
+
+    # Logging
+    verbose: bool = False
+    quiet: bool = False
+
+    def to_yt_dlp_flags(self) -> List[str]:
+        """Convert options to yt-dlp command line flags"""
+        flags = []
+
+        if self.output and self.output != "%(title)s [%(id)s].%(ext)s":
+            flags.extend(["--output", self.output])
+
+        if self.skip_download:
+            flags.append("--skip-download")
+
+        if self.max_downloads > 0:
+            flags.extend(["--max-downloads", str(self.max_downloads)])
+
+        if self.playlist_items:
+            flags.extend(["--playlist-items", self.playlist_items])
+
+        if self.concurrent_fragments > 1:
+            flags.extend(["--concurrent-fragments", str(self.concurrent_fragments)])
+
+        if self.sleep_interval > 0:
+            flags.extend(["--sleep-interval", str(self.sleep_interval)])
+
+        if self.max_sleep_interval != 20:
+            flags.extend(["--max-sleep-interval", str(self.max_sleep_interval)])
+
+        if self.retry_sleep:
+            flags.extend(["--retry-sleep", self.retry_sleep])
+
+        if self.format:
+            flags.extend(["--format", self.format])
+
+        if self.format_sort:
+            flags.extend(["--format-sort", self.format_sort])
+
+        if self.restrict_filenames:
+            flags.append("--restrict-filenames")
+
+        if self.no_warnings:
+            flags.append("--no-warnings")
+
+        if self.verbose:
+            flags.append("--verbose")
+
+        if self.quiet:
+            flags.append("--quiet")
+
+        return flags
+
+
+@dataclass
+class TranscriptOptions:
+    """Transcript-specific configuration options"""
+
+    # Download settings
+    download_formats: List[str] = field(default_factory=lambda: ["txt", "json"])
+    use_language_folders: bool = True
+    sanitize_filenames: bool = True
+
+    # Language handling
+    default_language: str = "en"
+    auto_detect_language: bool = True
+    language_priority: List[str] = field(default_factory=lambda: ["en"])
+
+    # Batch processing
+    concurrent_workers: int = 3
+    batch_size: int = 100
+    max_videos_per_channel: int = 0
+
+    # File organization
+    organize_existing: bool = True
+    timestamp_prefix_format: str = ""
+    overwrite_existing: bool = False
+
+
+@dataclass
+class RateLimiting:
+    """Rate limiting for transcript API"""
+
     base_delay: float = 1.5
     max_workers: int = 3
     max_retries: int = 3
     retry_backoff_factor: float = 2.0
     jitter_percentage: float = 0.2
-    ban_recovery_time: tuple = (300, 420)
-    
-    # File handling settings
-    output_dir: str = "./downloads"
-    use_language_folders: bool = True
-    download_formats: List[str] = field(default_factory=lambda: ["txt", "json"])
-    sanitize_filenames: bool = True
-    
-    # API settings
-    api_timeout: int = 600
-    batch_size: int = 100
-    max_videos_per_channel: int = 0
-    
-    # UI settings
-    show_progress: bool = True
-    clear_screen: bool = True
-    show_errors: bool = True
-    color_scheme: str = "default"
-    
-    # Advanced settings
-    enable_cache: bool = True
-    cache_dir: str = "./cache"
-    cache_expiry_hours: int = 24
-    log_level: str = "INFO"
-    log_file: str = ""
-    
-    # Rate limiting strategy
+    ban_recovery_time: Tuple[int, int] = (300, 420)
     rate_strategy: str = "balanced"
     strategy_multipliers: Dict[str, float] = field(default_factory=lambda: {
         "conservative": 3.0,
         "balanced": 1.0,
         "aggressive": 0.5
     })
-    
-    # Performance settings
-    memory_usage: str = "medium"
-    network_speed: str = "medium"
-    cpu_cores: int = 0
-    
-    @classmethod
-    def from_toml(cls, config_path: str = "config.toml") -> 'DownloadConfig':
-        """Load configuration from TOML file"""
-        try:
-            with open(config_path, 'r') as f:
-                config_data = toml.load(f)
-            
-            # Flatten nested TOML structure for dataclass
-            flattened = {}
-            for section, values in config_data.items():
-                if isinstance(values, dict):
-                    for key, value in values.items():
-                        # Skip the multipliers section - handle it separately
-                        if section == 'rate_limiting_strategies' and key == 'multipliers':
-                            continue
-                        flattened[key] = value
-                else:
-                    flattened[section] = values
-            
-            # Handle special nested structures
-            if 'rate_limiting_strategies' in config_data:
-                strategies = config_data['rate_limiting_strategies']
-                if 'strategy' in strategies:
-                    flattened['rate_strategy'] = strategies['strategy']
-                if 'multipliers' in strategies:
-                    flattened['strategy_multipliers'] = strategies['multipliers']
-            
-            # Remove the conflicting 'strategy' key if it exists
-            if 'strategy' in flattened:
-                del flattened['strategy']
-            
-            return cls(**flattened)
-        except FileNotFoundError:
-            logging.warning(f"Config file {config_path} not found, using defaults")
-            return cls()
-        except Exception as e:
-            logging.error(f"Error loading config: {e}, using defaults")
-            return cls()
-    
-    def apply_rate_strategy(self):
+
+    def apply_strategy(self):
         """Apply the selected rate limiting strategy"""
         multiplier = self.strategy_multipliers.get(self.rate_strategy, 1.0)
         self.base_delay *= multiplier
         self.max_workers = max(1, int(self.max_workers / multiplier))
-    
+
+
+@dataclass
+class APISettings:
+    """YouTube Transcript API settings"""
+
+    api_timeout: int = 600
+    enable_cache: bool = True
+    cache_dir: str = "./cache"
+    cache_expiry_hours: int = 24
+
+
+@dataclass
+class UISettings:
+    """UI and display settings"""
+
+    show_progress: bool = True
+    clear_screen: bool = True
+    show_errors: bool = True
+    color_scheme: str = "default"
+
+
+@dataclass
+class LoggingSettings:
+    """Logging configuration"""
+
+    level: str = "INFO"
+    file: str = ""
+    log_ytdlp_commands: bool = True
+    command_log_file: str = "ytdlp_commands.log"
+
+
+@dataclass
+class PerformanceSettings:
+    """Performance tuning"""
+
+    memory_usage: str = "medium"
+    network_speed: str = "medium"
+    cpu_cores: int = 0
+
+
+@dataclass
+class DownloadConfig:
+    """Complete configuration for YouTube Transcript Downloader"""
+
+    yt_dlp: YTDLPOptions = field(default_factory=YTDLPOptions)
+    transcripts: TranscriptOptions = field(default_factory=TranscriptOptions)
+    rate_limiting: RateLimiting = field(default_factory=RateLimiting)
+    api_settings: APISettings = field(default_factory=APISettings)
+    ui: UISettings = field(default_factory=UISettings)
+    logging: LoggingSettings = field(default_factory=LoggingSettings)
+    performance: PerformanceSettings = field(default_factory=PerformanceSettings)
+
+    def load_from_toml(self, config_path: str = "config.toml"):
+        """Load configuration from TOML file"""
+        try:
+            with open(config_path, 'r') as f:
+                config_data = toml.load(f)
+
+            # Load yt-dlp options
+            if 'yt_dlp' in config_data and 'options' in config_data['yt_dlp']:
+                for key, value in config_data['yt_dlp']['options'].items():
+                    if hasattr(self.yt_dlp, key):
+                        setattr(self.yt_dlp, key, value)
+
+            # Load transcript options
+            if 'transcripts' in config_data:
+                for key, value in config_data['transcripts'].items():
+                    if hasattr(self.transcripts, key):
+                        setattr(self.transcripts, key, value)
+
+            # Load rate limiting
+            if 'rate_limiting' in config_data:
+                for key, value in config_data['rate_limiting'].items():
+                    if key == 'ban_recovery_time' and isinstance(value, list):
+                        value = tuple(value)
+                    if hasattr(self.rate_limiting, key):
+                        setattr(self.rate_limiting, key, value)
+
+                # Handle strategy multipliers
+                if 'strategy_multipliers' in config_data['rate_limiting']:
+                    self.rate_limiting.strategy_multipliers = config_data['rate_limiting']['strategy_multipliers']
+
+            # Load API settings
+            if 'api_settings' in config_data or 'api' in config_data:
+                api_section = config_data.get('api_settings', config_data.get('api', {}))
+                for key, value in api_section.items():
+                    if hasattr(self.api_settings, key):
+                        setattr(self.api_settings, key, value)
+
+            # Load UI settings
+            if 'ui_settings' in config_data or 'ui' in config_data:
+                ui_section = config_data.get('ui_settings', config_data.get('ui', {}))
+                for key, value in ui_section.items():
+                    if hasattr(self.ui, key):
+                        setattr(self.ui, key, value)
+
+            # Load logging settings
+            if 'logging' in config_data:
+                for key, value in config_data['logging'].items():
+                    if hasattr(self.logging, key):
+                        setattr(self.logging, key, value)
+
+            # Load performance settings
+            if 'performance' in config_data:
+                for key, value in config_data['performance'].items():
+                    if hasattr(self.performance, key):
+                        setattr(self.performance, key, value)
+
+            # Apply rate limiting strategy
+            self.rate_limiting.apply_strategy()
+
+        except FileNotFoundError:
+            logging.warning(f"Config file {config_path} not found, using defaults")
+        except Exception as e:
+            logging.error(f"Error loading config: {e}, using defaults")
+
     def update_from_args(self, args: argparse.Namespace):
         """Update configuration from command line arguments"""
-        if hasattr(args, 'delay') and args.delay:
-            self.base_delay = args.delay
-        if hasattr(args, 'workers') and args.workers:
-            self.max_workers = args.workers
-        if hasattr(args, 'txt') and args.txt:
-            self.download_formats = ["txt"]
-        if hasattr(args, 'json') and args.json:
-            self.download_formats = ["json"]
 
+        # yt-dlp options
+        if hasattr(args, 'output_template') and args.output_template:
+            self.yt_dlp.output = args.output_template
+
+        if hasattr(args, 'skip_download') and args.skip_download:
+            self.yt_dlp.skip_download = args.skip_download
+
+        if hasattr(args, 'format') and args.format:
+            self.yt_dlp.format = args.format
+
+        if hasattr(args, 'format_sort') and args.format_sort:
+            self.yt_dlp.format_sort = args.format_sort
+
+        if hasattr(args, 'sleep_interval') and args.sleep_interval:
+            self.yt_dlp.sleep_interval = args.sleep_interval
+
+        if hasattr(args, 'verbose') and args.verbose:
+            self.yt_dlp.verbose = args.verbose
+
+        if hasattr(args, 'quiet') and args.quiet:
+            self.yt_dlp.quiet = args.quiet
+
+        # Transcript options
+        if hasattr(args, 'transcript_format') and args.transcript_format:
+            self.transcripts.download_formats = [args.transcript_format]
+
+        if hasattr(args, 'concurrent_workers') and args.concurrent_workers:
+            self.transcripts.concurrent_workers = args.concurrent_workers
+
+        if hasattr(args, 'batch_size') and args.batch_size:
+            self.transcripts.batch_size = args.batch_size
+
+        if hasattr(args, 'default_language') and args.default_language:
+            self.transcripts.default_language = args.default_language
+
+        if hasattr(args, 'overwrite_existing') and args.overwrite_existing:
+            self.transcripts.overwrite_existing = args.overwrite_existing
+
+        if hasattr(args, 'organize_existing') and not args.organize_existing:
+            self.transcripts.organize_existing = args.organize_existing
+
+        # Standard flags
+        if hasattr(args, 'txt') and args.txt:
+            self.transcripts.download_formats = ["txt"]
+
+        if hasattr(args, 'json') and args.json:
+            self.transcripts.download_formats = ["json"]
 
 class ColoredFormatter(logging.Formatter):
     """Custom formatter to add colors to log messages"""
@@ -970,51 +1158,78 @@ class ConfigManager:
     
     @staticmethod
     def create_default_config(config_path: str = "config.toml"):
-        """Create a default configuration file"""
-        config = DownloadConfig()
+        """Create a default configuration file with new structure"""
         try:
             with open(config_path, 'w') as f:
                 toml.dump({
-                    "rate_limiting": {
-                        "base_delay": config.base_delay,
-                        "max_workers": config.max_workers,
-                        "max_retries": config.max_retries,
-                        "retry_backoff_factor": config.retry_backoff_factor,
-                        "jitter_percentage": config.jitter_percentage,
-                        "ban_recovery_time": list(config.ban_recovery_time)
+                    "yt_dlp": {
+                        "options": {
+                            "output": "%(title)s [%(id)s].%(ext)s",
+                            "skip_download": True,
+                            "max_downloads": 0,
+                            "playlist_items": "",
+                            "concurrent_fragments": 1,
+                            "sleep_interval": 0.0,
+                            "max_sleep_interval": 20,
+                            "retry_sleep": "",
+                            "format": "",
+                            "format_sort": "",
+                            "restrict_filenames": False,
+                            "no_warnings": False,
+                            "verbose": False,
+                            "quiet": False
+                        }
                     },
-                    "file_handling": {
-                        "output_dir": config.output_dir,
-                        "use_language_folders": config.use_language_folders,
-                        "download_formats": config.download_formats,
-                        "sanitize_filenames": config.sanitize_filenames
+                    "transcripts": {
+                        "download_formats": ["txt", "json"],
+                        "use_language_folders": True,
+                        "sanitize_filenames": True,
+                        "default_language": "en",
+                        "auto_detect_language": True,
+                        "language_priority": ["en"],
+                        "concurrent_workers": 3,
+                        "batch_size": 100,
+                        "max_videos_per_channel": 0,
+                        "organize_existing": True,
+                        "timestamp_prefix_format": "",
+                        "overwrite_existing": False
+                    },
+                    "rate_limiting": {
+                        "base_delay": 1.5,
+                        "max_workers": 3,
+                        "max_retries": 3,
+                        "retry_backoff_factor": 2.0,
+                        "jitter_percentage": 0.2,
+                        "ban_recovery_time": [300, 420],
+                        "rate_strategy": "balanced",
+                        "strategy_multipliers": {
+                            "conservative": 3.0,
+                            "balanced": 1.0,
+                            "aggressive": 0.5
+                        }
                     },
                     "api_settings": {
-                        "api_timeout": config.api_timeout,
-                        "batch_size": config.batch_size,
-                        "max_videos_per_channel": config.max_videos_per_channel
+                        "api_timeout": 600,
+                        "enable_cache": True,
+                        "cache_dir": "./cache",
+                        "cache_expiry_hours": 24
                     },
-                    "ui_settings": {
-                        "show_progress": config.show_progress,
-                        "clear_screen": config.clear_screen,
-                        "show_errors": config.show_errors,
-                        "color_scheme": config.color_scheme
+                    "ui": {
+                        "show_progress": True,
+                        "clear_screen": True,
+                        "show_errors": True,
+                        "color_scheme": "default"
                     },
-                    "advanced": {
-                        "enable_cache": config.enable_cache,
-                        "cache_dir": config.cache_dir,
-                        "cache_expiry_hours": config.cache_expiry_hours,
-                        "log_level": config.log_level,
-                        "log_file": config.log_file
-                    },
-                    "rate_limiting_strategies": {
-                        "strategy": config.rate_strategy,
-                        "multipliers": config.strategy_multipliers
+                    "logging": {
+                        "level": "INFO",
+                        "file": "",
+                        "log_ytdlp_commands": True,
+                        "command_log_file": "ytdlp_commands.log"
                     },
                     "performance": {
-                        "memory_usage": config.memory_usage,
-                        "network_speed": config.network_speed,
-                        "cpu_cores": config.cpu_cores
+                        "memory_usage": "medium",
+                        "network_speed": "medium",
+                        "cpu_cores": 0
                     }
                 }, f)
             print(f"Created default configuration file: {config_path}")
@@ -1027,55 +1242,135 @@ class ConfigManager:
         print("\n" + "="*60)
         print("CURRENT CONFIGURATION")
         print("="*60)
-        print(f"Rate Limiting: {config.base_delay}s delay, {config.max_workers} workers")
-        print(f"Strategy: {config.rate_strategy}")
-        print(f"Output: {config.output_dir}")
-        print(f"Formats: {', '.join(config.download_formats)}")
-        print(f"Language folders: {config.use_language_folders}")
-        print(f"Log level: {config.log_level}")
+
+        print(f"\n{Fore.YELLOW}yt-dlp Options:{Style.RESET_ALL}")
+        print(f"  Output template: {config.yt_dlp.output}")
+        print(f"  Skip download: {config.yt_dlp.skip_download}")
+        if config.yt_dlp.format:
+            print(f"  Format: {config.yt_dlp.format}")
+        if config.yt_dlp.sleep_interval > 0:
+            print(f"  Sleep interval: {config.yt_dlp.sleep_interval}s")
+
+        print(f"\n{Fore.YELLOW}Transcript Options:{Style.RESET_ALL}")
+        print(f"  Formats: {', '.join(config.transcripts.download_formats)}")
+        print(f"  Default language: {config.transcripts.default_language}")
+        print(f"  Auto-detect language: {config.transcripts.auto_detect_language}")
+        print(f"  Concurrent workers: {config.transcripts.concurrent_workers}")
+        print(f"  Batch size: {config.transcripts.batch_size}")
+        print(f"  Use language folders: {config.transcripts.use_language_folders}")
+        print(f"  Organize existing: {config.transcripts.organize_existing}")
+
+        print(f"\n{Fore.YELLOW}Rate Limiting:{Style.RESET_ALL}")
+        print(f"  Base delay: {config.rate_limiting.base_delay}s")
+        print(f"  Max workers: {config.rate_limiting.max_workers}")
+        print(f"  Strategy: {config.rate_limiting.rate_strategy}")
+
+        print(f"\n{Fore.YELLOW}API Settings:{Style.RESET_ALL}")
+        print(f"  API timeout: {config.api_settings.api_timeout}s")
+        print(f"  Cache enabled: {config.api_settings.enable_cache}")
+        if config.api_settings.enable_cache:
+            print(f"  Cache directory: {config.api_settings.cache_dir}")
+
+        print(f"\n{Fore.YELLOW}Logging:{Style.RESET_ALL}")
+        print(f"  Level: {config.logging.level}")
+        print(f"  Log file: {config.logging.file or '(console)'}")
+        print(f"  Log yt-dlp commands: {config.logging.log_ytdlp_commands}")
+        if config.logging.log_ytdlp_commands:
+            print(f"  Command log file: {config.logging.command_log_file}")
+
         print("="*60)
 
 
 def load_config_with_overrides(config_path: str = "config.toml") -> DownloadConfig:
-    """Load config from TOML, then override with environment variables"""
-    config = DownloadConfig.from_toml(config_path)
-    
+    """Load config with priority: CLI args > env vars > config.toml > defaults"""
+    config = DownloadConfig()
+
+    # Load from config.toml
+    config.load_from_toml(config_path)
+
     # Override with environment variables
     env_overrides = {
-        'YTD_DELAY': ('base_delay', float),
-        'YTD_WORKERS': ('max_workers', int),
-        'YTD_OUTPUT_DIR': ('output_dir', str),
-        'YTD_LOG_LEVEL': ('log_level', str),
-        'YTD_RATE_STRATEGY': ('rate_strategy', str),
+        # yt-dlp options
+        'YTD_OUTPUT': ('yt_dlp.output', str),
+        'YTD_SKIP_DOWNLOAD': ('yt_dlp.skip_download', lambda x: x.lower() == 'true'),
+        'YTD_SLEEP_INTERVAL': ('yt_dlp.sleep_interval', float),
+
+        # Transcript options
+        'YTD_CONCURRENT_WORKERS': ('transcripts.concurrent_workers', int),
+        'YTD_BATCH_SIZE': ('transcripts.batch_size', int),
+        'YTD_DEFAULT_LANGUAGE': ('transcripts.default_language', str),
+
+        # Rate limiting
+        'YTD_BASE_DELAY': ('rate_limiting.base_delay', float),
+        'YTD_MAX_WORKERS': ('rate_limiting.max_workers', int),
+        'YTD_RATE_STRATEGY': ('rate_limiting.rate_strategy', str),
+
+        # Logging
+        'YTD_LOG_LEVEL': ('logging.level', str),
+        'YTD_LOG_FILE': ('logging.file', str),
+        'YTD_LOG_YTDLP_COMMANDS': ('logging.log_ytdlp_commands', lambda x: x.lower() == 'true'),
     }
-    
-    for env_var, (config_key, type_func) in env_overrides.items():
+
+    for env_var, (config_path, type_func) in env_overrides.items():
         if env_var in os.environ:
             try:
                 value = type_func(os.environ[env_var])
-                setattr(config, config_key, value)
-                logging.info(f"Overridden {config_key} from environment: {value}")
-            except (ValueError, TypeError) as e:
+                # Navigate to nested attribute
+                parts = config_path.split('.')
+                obj = config
+                for part in parts[:-1]:
+                    obj = getattr(obj, part)
+                setattr(obj, parts[-1], value)
+                logging.info(f"Overridden {config_path} from environment: {value}")
+            except (ValueError, TypeError, AttributeError) as e:
                 logging.warning(f"Invalid {env_var} value: {e}")
-    
+
+    # Re-apply rate limiting strategy after env var overrides
+    config.rate_limiting.apply_strategy()
+
     return config
 
 
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(
-        description="YouTube Channel Transcript Downloader v2.0", 
+        description="YouTube Channel Transcript Downloader v2.0 - yt-dlp + transcript orchestration",
         add_help=False
     )
-    parser.add_argument("-f", "--file", help="File containing channel URLs")
+
+    # Application flags
     parser.add_argument("-h", "--help", action="store_true", help="Show help message")
-    parser.add_argument("--create-config", action="store_true", help="Create default config file")
+    parser.add_argument("--create-config", action="store_true", help="Create default config.toml file")
     parser.add_argument("--show-config", action="store_true", help="Show current configuration")
+
+    # yt-dlp flags (passthrough)
+    parser.add_argument("--output-template", help="Override yt-dlp output template")
+    parser.add_argument("--skip-download", action="store_true", help="Skip video download (transcripts only)")
+    parser.add_argument("--format", help="Video format selector for yt-dlp")
+    parser.add_argument("--format-sort", help="Format sort order for yt-dlp")
+    parser.add_argument("--sleep-interval", type=float, help="Seconds to sleep between requests (yt-dlp)")
+    parser.add_argument("--verbose", action="store_true", help="Verbose yt-dlp output")
+    parser.add_argument("--quiet", action="store_true", help="Quiet yt-dlp output")
+
+    # Transcript-specific flags
+    parser.add_argument("--transcript-format", choices=["txt", "json", "srt", "vtt"],
+                       help="Transcript format to download")
+    parser.add_argument("--concurrent-workers", type=int,
+                       help="Number of concurrent transcript downloads")
+    parser.add_argument("--batch-size", type=int,
+                       help="Number of videos to process per batch")
+    parser.add_argument("--default-language", help="Default transcript language code")
+    parser.add_argument("--overwrite-existing", action="store_true",
+                       help="Overwrite existing transcript files")
+    parser.add_argument("--no-organize", action="store_true",
+                       help="Disable file organization")
+
+    # Standard flags
+    parser.add_argument("-t", "--transcript", dest="languages", action="append",
+                       help="Transcript language code (can be repeated)")
     parser.add_argument("-all", action="store_true", help="Download all available languages")
-    parser.add_argument("-txt", action="store_true", help="Download only TXT files")
-    parser.add_argument("-json", action="store_true", help="Download only JSON files")
-    parser.add_argument("-delay", type=float, help="Delay between API requests in seconds")
-    parser.add_argument("-workers", type=int, help="Number of concurrent downloads")
+    parser.add_argument("-txt", action="store_true", help="Download only TXT format")
+    parser.add_argument("-json", action="store_true", help="Download only JSON format")
 
     # Parse known args first
     args, remaining = parser.parse_known_args()
@@ -1083,23 +1378,11 @@ def parse_arguments() -> argparse.Namespace:
     if args.help or len(sys.argv) <= 1:
         return args
 
-    # Parse URLs and languages from remaining args
+    # Parse URLs from remaining args
     args.urls = []
-    args.languages = []
 
     for arg in remaining:
-        if arg.startswith("-"):
-            if arg.startswith("-delay") or arg.startswith("-workers"):
-                continue
-            elif arg == "-all":
-                args.all = True
-            elif arg == "-txt":
-                args.txt = True
-            elif arg == "-json":
-                args.json = True
-            else:
-                args.languages.append(arg[1:])
-        elif arg.startswith(("http://", "https://", "www.")):
+        if arg.startswith(("http://", "https://", "www.")):
             args.urls.append(arg)
 
     return args
@@ -1142,99 +1425,86 @@ def main():
     """Main entry point"""
     # Parse arguments
     args = parse_arguments()
-    
+
     # Handle config commands
     if args.create_config:
         ConfigManager.create_default_config()
         return
-    
+
     if args.show_config:
         config = load_config_with_overrides()
         ConfigManager.show_current_config(config)
         return
-    
-    # Load configuration
+
+    # Load configuration with priority: CLI > env > config.toml > defaults
     config = load_config_with_overrides()
-    
-    # Update config from CLI args
+
+    # Update config from CLI args (highest priority)
     config.update_from_args(args)
-    
-    # Apply rate limiting strategy
-    config.apply_rate_strategy()
-    
+
     # Clear screen if configured
-    if config.clear_screen:
+    if config.ui.clear_screen:
         os.system("cls" if os.name == "nt" else "clear")
-    
+
     # Initialize downloader
     downloader = YouTubeTranscriptDownloader(config)
-    
+
     # Show help if requested
     if args.help or len(sys.argv) <= 1:
         downloader.progress_reporter.display_help()
         return
-    
-    # Parse URLs from file if specified
+
+    # Get URLs from command line
     urls = []
-    if args.file:
-        if not os.path.exists(args.file):
-            logging.error(f"File not found: {args.file}")
-            sys.exit(1)
-        
-        try:
-            with open(args.file, "r", encoding="utf-8") as f:
-                content = f.read().replace(",", "\n")
-                file_urls = [url.strip() for url in content.split("\n") if url.strip()]
-                urls.extend(file_urls)
-        except Exception as e:
-            logging.error(f"Error reading file {args.file}: {str(e)}")
-            sys.exit(1)
-    
-    # Add URLs from command line
     if hasattr(args, 'urls') and args.urls:
         urls.extend(args.urls)
-    
+
     # Ensure we have URLs
     if not urls:
         logging.error("No channel URLs provided. Use -h for help.")
         sys.exit(1)
-    
+
     # Get languages
     languages = []
     if hasattr(args, 'languages') and args.languages:
         languages = args.languages
     elif not args.all:
-        languages = [get_system_language()]
-    
+        # Auto-detect system language or use default
+        if config.transcripts.auto_detect_language:
+            detected_lang = get_system_language()
+            languages = [detected_lang]
+            logging.info(f"Auto-detected language: {Fore.CYAN}{detected_lang}{Style.RESET_ALL}")
+        else:
+            languages = [config.transcripts.default_language]
+
     # Get formats
-    formats = config.download_formats
-    if args.txt:
-        formats = ["txt"]
-    elif args.json:
-        formats = ["json"]
-    
+    formats = config.transcripts.download_formats
+
     # Display session configuration
     print(f"{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
     print(f"{Fore.YELLOW}SESSION CONFIGURATION{Style.RESET_ALL}")
     print(f"{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
-    
+
     if args.all:
         logging.info(
-            f"Processing {Fore.CYAN}{len(urls)}{Style.RESET_ALL} channels with {Fore.GREEN}ALL available languages{Style.RESET_ALL}"
+            f"Processing {Fore.CYAN}{len(urls)}{Style.RESET_ALL} URLs with {Fore.GREEN}ALL available languages{Style.RESET_ALL}"
         )
     else:
         logging.info(
-            f"Processing {Fore.CYAN}{len(urls)}{Style.RESET_ALL} channels with languages: {Fore.CYAN}{', '.join(languages)}{Style.RESET_ALL}"
+            f"Processing {Fore.CYAN}{len(urls)}{Style.RESET_ALL} URLs with languages: {Fore.CYAN}{', '.join(languages)}{Style.RESET_ALL}"
         )
-    
+
     logging.info(
-        f"File types to download: {Fore.CYAN}{', '.join(formats)}{Style.RESET_ALL}"
+        f"Transcript formats: {Fore.CYAN}{', '.join(formats)}{Style.RESET_ALL}"
     )
     logging.info(
-        f"Rate limiting: {Fore.YELLOW}{config.base_delay}s{Style.RESET_ALL} delay, {Fore.YELLOW}{config.max_workers}{Style.RESET_ALL} workers"
+        f"Rate limiting: {Fore.YELLOW}{config.rate_limiting.base_delay}s{Style.RESET_ALL} delay, {Fore.YELLOW}{config.rate_limiting.max_workers}{Style.RESET_ALL} workers"
+    )
+    logging.info(
+        f"yt-dlp output template: {Fore.CYAN}{config.yt_dlp.output}{Style.RESET_ALL}"
     )
     print(f"{Fore.CYAN}{'-' * 80}{Style.RESET_ALL}")
-    
+
     # Process channels
     try:
         results = downloader.process_channels(urls, languages, args.all, formats)
