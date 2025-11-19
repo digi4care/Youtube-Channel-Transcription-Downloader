@@ -530,8 +530,8 @@ class YouTubeAPIAdapter:
 
             for transcript in transcript_list:
                 lang_code = transcript.language_code
-                is_manual = transcript.is_translation
-                is_auto = not transcript.is_generated
+                is_manual = not transcript.is_generated
+                is_auto = transcript.is_generated
 
                 quality_score = 0
                 if is_manual:
@@ -544,7 +544,7 @@ class YouTubeAPIAdapter:
                     "quality_score": quality_score,
                     "is_manual": is_manual,
                     "is_auto": is_auto,
-                    "original_language": transcript.original_language_code if hasattr(transcript, 'original_language_code') else None
+                    "translation_languages": transcript.translation_languages if hasattr(transcript, 'translation_languages') else []
                 })
 
             return transcripts

@@ -16,9 +16,10 @@ youtube_transcript_api._errors = MockModule()
 class MockTranscript:
     def __init__(self, lang_code, is_manual=False, is_auto=True):
         self.language_code = lang_code
-        self.is_translation = is_manual
-        self.is_generated = not is_auto
-        self.original_language_code = lang_code if not is_manual else "en"
+        self.language = lang_code
+        self.is_generated = not is_manual
+        self.is_translatable = True
+        self.translation_languages = ["en"] if lang_code != "en" else []
 
     def to_raw_data(self):
         return [{"text": f"Sample transcript in {self.language_code}", "start": 0.0, "duration": 5.0}]

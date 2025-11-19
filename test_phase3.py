@@ -16,6 +16,14 @@ class MockTranscriptList:
     def __iter__(self):
         return iter([])
 
+class MockTranscript:
+    def __init__(self, lang_code):
+        self.language_code = lang_code
+        self.language = lang_code
+        self.is_generated = lang_code != "en"
+        self.is_translatable = True
+        self.translation_languages = ["en"] if lang_code != "en" else []
+
 class MockYouTubeTranscriptApi:
     def __init__(self):
         pass
