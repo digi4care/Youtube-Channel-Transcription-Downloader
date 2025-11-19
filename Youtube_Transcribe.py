@@ -522,67 +522,91 @@ class YouTubeAPIAdapter:
                 logging.error(f"Error output: {stderr}")
             return []
     
-    def get_available_languages(self, video_id: str) -> List[str]:
-        """Get available transcript languages for a video"""
+    def get_available_languages_with_quality(self, video_id: str) -> List[Dict]:
+        """Get available transcript languages with quality scores"""
         try:
-            with tqdm(
-                total=1,
-                desc=f"{Fore.CYAN}Checking available languages{Style.RESET_ALL}",
-                bar_format="{desc}: {bar}| {elapsed}",
-                colour="cyan",
-            ) as pbar:
-                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-                languages = []
+            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            transcripts = []
 
-                for transcript in transcript_list:
-                    lang_code = transcript.language_code
-                    languages.append(lang_code)
+            for transcript in transcript_list:
+                lang_code = transcript.language_code
+                is_manual = transcript.is_translation
+                is_auto = not transcript.is_generated
 
-                pbar.update(1)
-            return languages
+                quality_score = 0
+                if is_manual:
+                    quality_score = 100
+                elif is_auto:
+                    quality_score = 50
+
+                transcripts.append({
+                    "language_code": lang_code,
+                    "quality_score": quality_score,
+                    "is_manual": is_manual,
+                    "is_auto": is_auto,
+                    "original_language": transcript.original_language_code if hasattr(transcript, 'original_language_code') else None
+                })
+
+            return transcripts
         except Exception as e:
             logging.error(f"Error getting available languages for video {video_id}: {e}")
             return []
-    
-    def download_transcript(self, video_id: str, language: str) -> Dict:
-        """Download a single transcript"""
-        try:
-            transcript = YouTubeTranscriptApi().fetch(video_id, languages=[language])
-            return {
-                "success": True,
-                "transcript": transcript.to_raw_data(),
-                "language": language
-            }
-        except _errors.NoTranscriptFound:
+
+    def download_transcript(self, video_id: str, requested_language: str) -> Dict:
+        """Download a single transcript with fallback logic"""
+        available_transcripts = self.get_available_languages_with_quality(video_id)
+
+        if not available_transcripts:
             return {
                 "success": False,
-                "error": "No transcript available",
+                "error": "No transcripts available for this video",
                 "retry": False
             }
-        except _errors.TranscriptsDisabled:
-            return {
-                "success": False,
-                "error": "Transcripts disabled for this video",
-                "retry": False
-            }
-        except _errors.VideoUnavailable:
-            return {
-                "success": False,
-                "error": "Video unavailable",
-                "retry": False
-            }
-        except _errors.RequestBlocked:
-            return {
-                "success": False,
-                "error": "Request blocked - possible rate limit",
-                "retry": True
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "retry": True
-            }
+
+        languages_to_try = [requested_language]
+
+        if requested_language not in [t["language_code"] for t in available_transcripts]:
+            if self.config.transcripts.language_priority:
+                for lang in self.config.transcripts.language_priority:
+                    if lang != requested_language and lang in [t["language_code"] for t in available_transcripts]:
+                        languages_to_try.append(lang)
+
+        languages_to_try.append("en")
+
+        for lang in languages_to_try:
+            for transcript_info in available_transcripts:
+                if transcript_info["language_code"] == lang:
+                    if transcript_info["quality_score"] >= 50:
+                        try:
+                            transcript = YouTubeTranscriptApi().fetch(video_id, languages=[lang])
+                            return {
+                                "success": True,
+                                "transcript": transcript.to_raw_data(),
+                                "language": lang,
+                                "quality_score": transcript_info["quality_score"],
+                                "is_manual": transcript_info["is_manual"],
+                                "fallback_used": lang != requested_language
+                            }
+                        except _errors.NoTranscriptFound:
+                            continue
+                        except _errors.RequestBlocked:
+                            return {
+                                "success": False,
+                                "error": "Request blocked - possible rate limit",
+                                "retry": True
+                            }
+                        except Exception as e:
+                            return {
+                                "success": False,
+                                "error": str(e),
+                                "retry": True
+                            }
+
+        return {
+            "success": False,
+            "error": f"No transcript available for language: {requested_language}",
+            "retry": False
+        }
     
     def _sanitize_filename(self, name: str) -> str:
         """Remove invalid characters from filenames"""
@@ -1064,9 +1088,9 @@ class YouTubeTranscriptDownloader:
         # If downloading all languages, get available languages
         if download_all and videos:
             first_video = videos[0]["id"]
-            available_langs = self.youtube_api.get_available_languages(first_video)
-            if available_langs:
-                languages = available_langs
+            available_transcripts = self.youtube_api.get_available_languages_with_quality(first_video)
+            if available_transcripts:
+                languages = [t["language_code"] for t in available_transcripts]
                 use_language_folders = True
                 self.file_manager.organize_files_by_language(output_dir, languages)
         
