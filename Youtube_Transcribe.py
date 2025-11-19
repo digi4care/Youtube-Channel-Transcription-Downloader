@@ -135,7 +135,7 @@ class TranscriptOptions:
     language_priority: List[str] = field(default_factory=lambda: ["en"])
 
     # Batch processing
-    concurrent_workers: int = 3
+    concurrent_workers: int = 1
     batch_size: int = 100
     max_videos_per_channel: int = 0
 
@@ -150,7 +150,7 @@ class RateLimiting:
     """Rate limiting for transcript API"""
 
     base_delay: float = 1.5
-    max_workers: int = 3
+    max_workers: int = 1
     max_retries: int = 3
     retry_backoff_factor: float = 2.0
     jitter_percentage: float = 0.2
@@ -521,6 +521,86 @@ class YouTubeAPIAdapter:
             if stderr:
                 logging.error(f"Error output: {stderr}")
             return []
+
+    def get_playlists_from_channel(self, channel_url: str) -> List[Dict]:
+        """Get all playlists from a channel's playlists page"""
+        logging.info(f"Fetching playlists from: {Fore.CYAN}{channel_url}{Style.RESET_ALL}")
+
+        try:
+            # Build command using config
+            command = ["yt-dlp"]
+            command.extend(self.config.yt_dlp.to_yt_dlp_flags())
+
+            command.extend([
+                "--print",
+                "%(playlist_autonumber)s\t%(playlist_title)s\t%(playlist_id)s",
+                channel_url,
+            ])
+
+            self._log_ytdlp_command(command, channel_url, "get playlists list")
+
+            process = subprocess.Popen(
+                command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
+            self.active_processes.append(process)
+
+            stdout, stderr = process.communicate(timeout=self.config.api_settings.api_timeout)
+            self.active_processes.remove(process)
+
+            if not stdout.strip():
+                logging.error("No playlist data returned.")
+                return []
+
+            playlists = []
+            lines = stdout.strip().split("\n")
+
+            for line in lines:
+                if line:
+                    # Parse: playlist_autonumber<TAB>playlist_title<TAB>playlist_id
+                    # Use split('\t') to handle titles with spaces reliably
+                    parts = line.split('\t')
+
+                    if len(parts) >= 3:
+                        playlist_id = parts[2].strip()
+                        playlist_title = parts[1].strip()
+
+                        # Validate playlist_id (should be alphanumeric + some chars)
+                        if playlist_id and len(playlist_id) > 5:
+                            playlists.append({
+                                "id": playlist_id,
+                                "title": playlist_title
+                            })
+                            logging.debug(f"Parsed playlist: '{playlist_title}' -> ID: {playlist_id}")
+                        else:
+                            logging.warning(f"Invalid playlist ID: '{playlist_id}' from line: {line}")
+                    else:
+                        logging.warning(f"Couldn't parse playlist data from: {line}")
+
+            logging.info(
+                f"Total playlists found: {Fore.GREEN}{len(playlists)}{Style.RESET_ALL}"
+            )
+
+            # Remove duplicates based on playlist_id
+            seen_ids = set()
+            unique_playlists = []
+            for playlist in playlists:
+                if playlist["id"] not in seen_ids:
+                    seen_ids.add(playlist["id"])
+                    unique_playlists.append(playlist)
+
+            if len(unique_playlists) < len(playlists):
+                logging.warning(f"Removed {len(playlists) - len(unique_playlists)} duplicate playlists")
+
+            return unique_playlists
+
+        except subprocess.TimeoutExpired:
+            logging.error("Timeout while fetching playlists list.")
+            self._cleanup_process(process)
+            return []
+        except Exception as e:
+            logging.error(f"Error fetching playlists: {e}")
+            self._cleanup_process(process)
+            return []
     
     def get_available_languages_with_quality(self, video_id: str) -> List[Dict]:
         """Get available transcript languages with quality scores"""
@@ -592,7 +672,7 @@ class YouTubeAPIAdapter:
                         except _errors.RequestBlocked:
                             return {
                                 "success": False,
-                                "error": "Request blocked - possible rate limit",
+                                "error": "YouTube Transcript API rate limited - please wait a few minutes",
                                 "retry": True
                             }
                         except Exception as e:
@@ -604,7 +684,7 @@ class YouTubeAPIAdapter:
 
         return {
             "success": False,
-            "error": f"No transcript available for language: {requested_language}",
+            "error": f"No transcript available in requested language: {requested_language}",
             "retry": False
         }
     
@@ -1060,19 +1140,74 @@ class YouTubeTranscriptDownloader:
     def process_single_channel(self, channel_url: str, languages: List[str],
                               download_all: bool, formats: List[str]) -> Tuple[int, int, int]:
         """Process a single channel"""
+        # Check if this is a playlists URL
+        if "/playlists" in channel_url:
+            return self._process_playlists_url(channel_url, languages, download_all, formats)
+
         # Get channel name
         channel_name = self.youtube_api.get_channel_name(channel_url)
-        
+
         # Get video metadata
         videos_data = self.youtube_api.get_videos_from_channel(channel_url)
-        
+
         if not videos_data:
             logging.warning(f"No videos found for {channel_url}. Skipping channel.")
             return 0, 0, 0
-        
+
         # Download transcripts
-        return self.download_transcripts_batch(videos_data, languages, channel_name, 
+        return self.download_transcripts_batch(videos_data, languages, channel_name,
                                               download_all, formats)
+
+    def _process_playlists_url(self, channel_url: str, languages: List[str],
+                              download_all: bool, formats: List[str]) -> Tuple[int, int, int]:
+        """Process playlists URL - get all playlists and process each individually"""
+        logging.info(f"{Fore.YELLOW}Detected playlists URL - activating playlist mode{Style.RESET_ALL}")
+
+        # Get playlists from channel
+        playlists = self.youtube_api.get_playlists_from_channel(channel_url)
+
+        if not playlists:
+            logging.warning(f"No playlists found for {channel_url}")
+            return 0, 0, 0
+
+        # Get channel name
+        base_url = channel_url.replace("/playlists", "")
+        channel_name = self.youtube_api.get_channel_name(base_url)
+
+        total_downloaded = 0
+        total_skipped = 0
+        total_failed = 0
+
+        # Process each playlist individually
+        for i, playlist in enumerate(playlists):
+            playlist_id = playlist["id"]
+            playlist_title = sanitize_folder_name(playlist["title"])
+            playlist_url = f"https://www.youtube.com/playlist?list={playlist_id}"
+
+            print(f"\n{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}PLAYLIST {i + 1}/{len(playlists)}: {playlist_title}{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
+            logging.info(f"Processing playlist: {Fore.CYAN}{playlist_title}{Style.RESET_ALL}")
+
+            # Use folder structure: ChannelName/PlaylistName/
+            folder_name = playlist_title
+            videos_data = self.youtube_api.get_videos_from_channel(playlist_url)
+
+            if not videos_data:
+                logging.warning(f"No videos found in playlist '{playlist_title}'. Skipping.")
+                continue
+
+            # Download transcripts
+            downloaded, skipped, failed = self.download_transcripts_batch(
+                videos_data, languages, f"{channel_name}/{folder_name}",
+                download_all, formats
+            )
+
+            total_downloaded += downloaded
+            total_skipped += skipped
+            total_failed += failed
+
+        return total_downloaded, total_skipped, total_failed
     
     def download_transcripts_batch(self, videos: List[Dict], languages: List[str],
                                   channel_name: str, download_all: bool,
@@ -1252,7 +1387,7 @@ class ConfigManager:
                         "default_language": "en",
                         "auto_detect_language": True,
                         "language_priority": ["en"],
-                        "concurrent_workers": 3,
+                        "concurrent_workers": 1,
                         "batch_size": 100,
                         "max_videos_per_channel": 0,
                         "organize_existing": True,
@@ -1261,7 +1396,7 @@ class ConfigManager:
                     },
                     "rate_limiting": {
                         "base_delay": 1.5,
-                        "max_workers": 3,
+                        "max_workers": 1,
                         "max_retries": 3,
                         "retry_backoff_factor": 2.0,
                         "jitter_percentage": 0.2,
@@ -1484,6 +1619,23 @@ def get_system_language() -> str:
 
     logging.info(f"Defaulting to {Fore.CYAN}English (en){Style.RESET_ALL}")
     return "en"
+
+
+def sanitize_folder_name(name: str) -> str:
+    """Sanitize folder name for filesystem use"""
+    # Remove or replace invalid characters
+    sanitized = re.sub(r'[<>:"/\\|?*]', '_', name)
+    # Remove control characters
+    sanitized = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', sanitized)
+    # Remove leading/trailing dots and spaces
+    sanitized = sanitized.strip('. ')
+    # Truncate to reasonable length
+    if len(sanitized) > 200:
+        sanitized = sanitized[:200]
+    # Ensure not empty
+    if not sanitized:
+        sanitized = "Untitled"
+    return sanitized
 
 
 def main():

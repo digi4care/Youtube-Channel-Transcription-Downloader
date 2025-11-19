@@ -10,6 +10,7 @@ This project successfully completed a **complete architecture redesign** of the 
 
 **Duration:** November 19, 2025
 **Total Phases:** 6 (all completed ✅)
+**Additional Features:** Smart Playlist Detection (completed ✅)
 **Branch:** `feature/phase2-ytdlp-integration`
 
 ---
@@ -65,16 +66,55 @@ This project successfully completed a **complete architecture redesign** of the 
 - Updated PLAN.md with all completed phases
 - Fixed markdown linting issues
 
+### Additional Feature: Smart Playlist Detection ✅
+**Status:** Completed
+**Implementation Date:** November 19, 2025
+**Key Achievements:**
+- Automatic detection of `/playlists` URLs
+- yt-dlp integration to extract playlist list: `%(playlist_autonumber)s %(playlist_title)s %(playlist_id)s`
+- Per-playlist folder organization: `ChannelName/PlaylistName/`
+- Folder name sanitization for filesystem compatibility
+- Batch processing loop for each playlist individually
+- Comprehensive test coverage (`test_playlist_detection.py`)
+
+**How it works:**
+1. Detect `/playlists` in URL
+2. Use yt-dlp to get all playlists from the channel
+3. Process each playlist in its own folder
+4. Folder structure: `ChannelName/PlaylistName/`
+5. Sanitize playlist names for filesystem safety
+
+**Usage:**
+```bash
+uv run python Youtube_Transcribe.py https://www.youtube.com/@channel/playlists -en
+```
+
+Downloads each playlist into its own subdirectory:
+```
+downloads/
+└── ChannelName/
+    ├── Playlist One/
+    │   ├── en/
+    │   └── es/
+    ├── Playlist Two/
+    │   ├── en/
+    │   └── es/
+    └── Playlist Three/
+        ├── en/
+        └── es/
+```
+
 ---
 
 ## 📁 Files Created
 
 ### Code Files
-- `Youtube_Transcribe.py` - Main application (refactored, 1553 lines)
+- `Youtube_Transcribe.py` - Main application (refactored, 1553+ lines)
 - `test_phase2.py` - Phase 2 tests
 - `test_phase3.py` - Phase 3 tests
 - `test_phase4.py` - Phase 4 tests
 - `test_integration.py` - Integration tests
+- `test_playlist_detection.py` - Smart playlist detection tests
 
 ### Documentation Files
 - `CLI_OPTIONS.md` - Complete CLI reference (643 lines)
@@ -200,10 +240,10 @@ This project successfully completed a **complete architecture redesign** of the 
 ## 📊 Statistics
 
 ### Code Metrics
-- **Main file:** 1,553 lines of code
-- **Test files:** 1,000+ lines of tests
-- **Documentation:** 2,000+ lines
-- **Total commits:** 6 feature commits
+- **Main file:** 1,600+ lines of code
+- **Test files:** 1,200+ lines of tests
+- **Documentation:** 2,500+ lines
+- **Total commits:** 7 feature commits
 
 ### Features Implemented
 - ✅ yt-dlp integration with flag passthrough
@@ -217,6 +257,7 @@ This project successfully completed a **complete architecture redesign** of the 
 - ✅ Command logging for debugging
 - ✅ Batch processing with concurrency
 - ✅ Multiple format support (txt, json, srt, vtt)
+- ✅ **Smart Playlist Detection** - Automatic per-playlist folder organization
 
 ### Documentation
 - ✅ CLI_OPTIONS.md - Complete reference
@@ -261,6 +302,32 @@ uv run python Youtube_Transcribe.py <URL> -en \
 # Environment variables
 YTD_CONCURRENT_WORKERS=5 YTD_DEFAULT_LANGUAGE=es \
   uv run python Youtube_Transcribe.py <URL> -en
+```
+
+### Smart Playlist Detection
+```bash
+# Download all playlists from a channel (auto-detected)
+uv run python Youtube_Transcribe.py https://www.youtube.com/@channel/playlists -en
+
+# Each playlist gets its own folder
+# Output structure:
+# downloads/
+# └── ChannelName/
+#     ├── Playlist One/
+#     │   ├── en/
+#     │   └── es/
+#     └── Playlist Two/
+#         ├── en/
+#         └── es/
+
+# Works with all URL formats
+uv run python Youtube_Transcribe.py https://www.youtube.com/channel/UC123/playlists -en
+uv run python Youtube_Transcribe.py https://www.youtube.com/c/ChannelName/playlists -en
+uv run python Youtube_Transcribe.py https://www.youtube.com/@ChannelName/playlists -all
+
+# Combine with other options
+uv run python Youtube_Transcribe.py https://www.youtube.com/@channel/playlists -en -es \
+  --concurrent-workers 5 --batch-size 100
 ```
 
 ---
@@ -345,14 +412,15 @@ This project successfully transformed a simple YouTube transcript downloader int
 - ✅ **Quality scoring** and language fallback
 - ✅ **Complete test coverage** with integration tests
 - ✅ **Extensive documentation** for users and developers
+- ✅ **Smart Playlist Detection** - Automatic per-playlist folder organization
 
-The application now follows **SOLID principles**, uses **enterprise Git workflows**, and provides a **flexible, configurable** solution for downloading YouTube channel transcripts at scale.
+The application now follows **SOLID principles**, uses **enterprise Git workflows**, and provides a **flexible, configurable** solution for downloading YouTube channel transcripts at scale, with intelligent organization for both channels and playlists.
 
 ---
 
 ## 🏆 Project Status
 
-**ALL 6 PHASES COMPLETED ✅**
+**ALL 6 PHASES COMPLETED ✅ + SMART PLAYLIST DETECTION ✅**
 
 | Phase | Status | Tests |
 |-------|--------|-------|
@@ -362,8 +430,11 @@ The application now follows **SOLID principles**, uses **enterprise Git workflow
 | Phase 4: CLI Updates | ✅ Complete | ✅ Passing |
 | Phase 5: Testing & Validation | ✅ Complete | ✅ Passing |
 | Phase 6: Documentation | ✅ Complete | ✅ Passing |
+| Smart Playlist Detection | ✅ Complete | ✅ Passing |
 
 **Ready for Production!** 🚀
+
+**Latest Feature:** Smart Playlist Detection - Auto-organize playlists into individual folders when using `/playlists` URLs
 
 ---
 
