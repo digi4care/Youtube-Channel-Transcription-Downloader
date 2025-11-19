@@ -525,7 +525,7 @@ class YouTubeAPIAdapter:
     def get_available_languages_with_quality(self, video_id: str) -> List[Dict]:
         """Get available transcript languages with quality scores"""
         try:
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            transcript_list = YouTubeTranscriptApi().list_transcripts(video_id)
             transcripts = []
 
             for transcript in transcript_list:
