@@ -20,6 +20,7 @@ import signal
 import shutil
 import random
 import logging
+from datetime import datetime
 from dataclasses import dataclass, field
 from typing import List, Dict, Set, Tuple
 
@@ -126,6 +127,7 @@ class TranscriptOptions:
     download_formats: List[str] = field(default_factory=lambda: ["txt", "json"])
     use_language_folders: bool = True
     sanitize_filenames: bool = True
+    output_dir: str = "./downloads"
 
     # Language handling
     default_language: str = "en"
@@ -133,7 +135,7 @@ class TranscriptOptions:
     language_priority: List[str] = field(default_factory=lambda: ["en"])
 
     # Batch processing
-    concurrent_workers: int = 3
+    concurrent_workers: int = 1
     batch_size: int = 100
     max_videos_per_channel: int = 0
 
@@ -148,7 +150,7 @@ class RateLimiting:
     """Rate limiting for transcript API"""
 
     base_delay: float = 1.5
-    max_workers: int = 3
+    max_workers: int = 1
     max_retries: int = 3
     retry_backoff_factor: float = 2.0
     jitter_percentage: float = 0.2
@@ -359,29 +361,51 @@ class ColoredFormatter(logging.Formatter):
 
 class YouTubeAPIAdapter:
     """Handles all YouTube API operations (Single Responsibility Principle)"""
-    
+
     def __init__(self, config: DownloadConfig):
         self.config = config
         self.active_processes = []
-    
+
+    def _log_ytdlp_command(self, command: List[str], url: str, purpose: str = ""):
+        """Log yt-dlp command for debugging"""
+        if self.config.logging.log_ytdlp_commands:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cmd_str = " ".join(command)
+            log_entry = f"""
+[{timestamp}] Executing yt-dlp ({purpose}):
+  Command: {cmd_str}
+  URL: {url}
+========================================
+"""
+            with open(self.config.logging.command_log_file, "a") as f:
+                f.write(log_entry)
+
     def get_channel_name(self, channel_url: str) -> str:
         """Get channel name using yt-dlp"""
         logging.info("Retrieving channel name...")
-        
+
         spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
         spinner_idx = 0
         process = None
 
         try:
-            command = [
-                "yt-dlp",
-                "--skip-download",
+            # Build command using config
+            command = ["yt-dlp"]
+
+            # Add yt-dlp flags from config
+            command.extend(self.config.yt_dlp.to_yt_dlp_flags())
+
+            # Add channel name extraction
+            command.extend([
                 "--print",
                 "%(channel)s",
                 "--playlist-items",
                 "1",
                 channel_url,
-            ]
+            ])
+
+            # Log command
+            self._log_ytdlp_command(command, channel_url, "get channel name")
 
             logging.debug(f"Running command: {' '.join(command)}")
             process = subprocess.Popen(
@@ -431,13 +455,22 @@ class YouTubeAPIAdapter:
         print(f"{Fore.CYAN}Executing yt-dlp... (please wait){Style.RESET_ALL}")
 
         try:
-            command = [
-                "yt-dlp",
+            # Build command using config
+            command = ["yt-dlp"]
+
+            # Add yt-dlp flags from config
+            command.extend(self.config.yt_dlp.to_yt_dlp_flags())
+
+            # Add video extraction
+            command.extend([
                 "--flat-playlist",
                 "--print",
                 "%(id)s %(title)s",
                 channel_url,
-            ]
+            ])
+
+            # Log command
+            self._log_ytdlp_command(command, channel_url, "get videos list")
 
             logging.debug(f"Running command: {' '.join(command)}")
 
@@ -446,7 +479,7 @@ class YouTubeAPIAdapter:
             )
             self.active_processes.append(process)
 
-            stdout, stderr = process.communicate(timeout=self.config.api_timeout)
+            stdout, stderr = process.communicate(timeout=self.config.api_settings.api_timeout)
             self.active_processes.remove(process)
 
             if not stdout.strip():
@@ -456,8 +489,8 @@ class YouTubeAPIAdapter:
             videos_data = []
             lines = stdout.strip().split("\n")
 
-            if self.config.max_videos_per_channel > 0:
-                lines = lines[:self.config.max_videos_per_channel]
+            if self.config.transcripts.max_videos_per_channel > 0:
+                lines = lines[:self.config.transcripts.max_videos_per_channel]
 
             print(f"{Fore.GREEN}Found {len(lines)} videos. Processing...{Style.RESET_ALL}")
 
@@ -488,72 +521,176 @@ class YouTubeAPIAdapter:
             if stderr:
                 logging.error(f"Error output: {stderr}")
             return []
-    
-    def get_available_languages(self, video_id: str) -> List[str]:
-        """Get available transcript languages for a video"""
+
+    def get_playlists_from_channel(self, channel_url: str) -> List[Dict]:
+        """Get all playlists from a channel's playlists page"""
+        logging.info(f"Fetching playlists from: {Fore.CYAN}{channel_url}{Style.RESET_ALL}")
+
         try:
-            with tqdm(
-                total=1,
-                desc=f"{Fore.CYAN}Checking available languages{Style.RESET_ALL}",
-                bar_format="{desc}: {bar}| {elapsed}",
-                colour="cyan",
-            ) as pbar:
-                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-                languages = []
+            # Build command using config
+            command = ["yt-dlp"]
+            command.extend(self.config.yt_dlp.to_yt_dlp_flags())
 
-                for transcript in transcript_list:
-                    lang_code = transcript.language_code
-                    languages.append(lang_code)
+            command.extend([
+                "--print",
+                "%(playlist_autonumber)s\t%(playlist_title)s\t%(playlist_id)s",
+                channel_url,
+            ])
 
-                pbar.update(1)
-            return languages
+            self._log_ytdlp_command(command, channel_url, "get playlists list")
+
+            process = subprocess.Popen(
+                command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
+            self.active_processes.append(process)
+
+            stdout, stderr = process.communicate(timeout=self.config.api_settings.api_timeout)
+            self.active_processes.remove(process)
+
+            if not stdout.strip():
+                logging.error("No playlist data returned.")
+                return []
+
+            playlists = []
+            lines = stdout.strip().split("\n")
+
+            for line in lines:
+                if line:
+                    # Parse: playlist_autonumber<TAB>playlist_title<TAB>playlist_id
+                    # Use split('\t') to handle titles with spaces reliably
+                    parts = line.split('\t')
+
+                    if len(parts) >= 3:
+                        playlist_id = parts[2].strip()
+                        playlist_title = parts[1].strip()
+
+                        # Validate playlist_id (should be alphanumeric + some chars)
+                        if playlist_id and len(playlist_id) > 5:
+                            playlists.append({
+                                "id": playlist_id,
+                                "title": playlist_title
+                            })
+                            logging.debug(f"Parsed playlist: '{playlist_title}' -> ID: {playlist_id}")
+                        else:
+                            logging.warning(f"Invalid playlist ID: '{playlist_id}' from line: {line}")
+                    else:
+                        logging.warning(f"Couldn't parse playlist data from: {line}")
+
+            logging.info(
+                f"Total playlists found: {Fore.GREEN}{len(playlists)}{Style.RESET_ALL}"
+            )
+
+            # Remove duplicates based on playlist_id
+            seen_ids = set()
+            unique_playlists = []
+            for playlist in playlists:
+                if playlist["id"] not in seen_ids:
+                    seen_ids.add(playlist["id"])
+                    unique_playlists.append(playlist)
+
+            if len(unique_playlists) < len(playlists):
+                logging.warning(f"Removed {len(playlists) - len(unique_playlists)} duplicate playlists")
+
+            return unique_playlists
+
+        except subprocess.TimeoutExpired:
+            logging.error("Timeout while fetching playlists list.")
+            self._cleanup_process(process)
+            return []
+        except Exception as e:
+            logging.error(f"Error fetching playlists: {e}")
+            self._cleanup_process(process)
+            return []
+    
+    def get_available_languages_with_quality(self, video_id: str) -> List[Dict]:
+        """Get available transcript languages with quality scores"""
+        try:
+            transcript_list = YouTubeTranscriptApi().list(video_id)
+            transcripts = []
+
+            for transcript in transcript_list:
+                lang_code = transcript.language_code
+                is_manual = not transcript.is_generated
+                is_auto = transcript.is_generated
+
+                quality_score = 0
+                if is_manual:
+                    quality_score = 100
+                elif is_auto:
+                    quality_score = 50
+
+                transcripts.append({
+                    "language_code": lang_code,
+                    "quality_score": quality_score,
+                    "is_manual": is_manual,
+                    "is_auto": is_auto,
+                    "translation_languages": transcript.translation_languages if hasattr(transcript, 'translation_languages') else []
+                })
+
+            return transcripts
         except Exception as e:
             logging.error(f"Error getting available languages for video {video_id}: {e}")
             return []
-    
-    def download_transcript(self, video_id: str, language: str) -> Dict:
-        """Download a single transcript"""
-        try:
-            transcript = YouTubeTranscriptApi().fetch(video_id, languages=[language])
-            return {
-                "success": True,
-                "transcript": transcript.to_raw_data(),
-                "language": language
-            }
-        except _errors.NoTranscriptFound:
+
+    def download_transcript(self, video_id: str, requested_language: str) -> Dict:
+        """Download a single transcript with fallback logic"""
+        available_transcripts = self.get_available_languages_with_quality(video_id)
+
+        if not available_transcripts:
             return {
                 "success": False,
-                "error": "No transcript available",
+                "error": "No transcripts available for this video",
                 "retry": False
             }
-        except _errors.TranscriptsDisabled:
-            return {
-                "success": False,
-                "error": "Transcripts disabled for this video",
-                "retry": False
-            }
-        except _errors.VideoUnavailable:
-            return {
-                "success": False,
-                "error": "Video unavailable",
-                "retry": False
-            }
-        except _errors.RequestBlocked:
-            return {
-                "success": False,
-                "error": "Request blocked - possible rate limit",
-                "retry": True
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "retry": True
-            }
+
+        languages_to_try = [requested_language]
+
+        if requested_language not in [t["language_code"] for t in available_transcripts]:
+            if self.config.transcripts.language_priority:
+                for lang in self.config.transcripts.language_priority:
+                    if lang != requested_language and lang in [t["language_code"] for t in available_transcripts]:
+                        languages_to_try.append(lang)
+
+        languages_to_try.append("en")
+
+        for lang in languages_to_try:
+            for transcript_info in available_transcripts:
+                if transcript_info["language_code"] == lang:
+                    if transcript_info["quality_score"] >= 50:
+                        try:
+                            transcript = YouTubeTranscriptApi().fetch(video_id, languages=[lang])
+                            return {
+                                "success": True,
+                                "transcript": transcript.to_raw_data(),
+                                "language": lang,
+                                "quality_score": transcript_info["quality_score"],
+                                "is_manual": transcript_info["is_manual"],
+                                "fallback_used": lang != requested_language
+                            }
+                        except _errors.NoTranscriptFound:
+                            continue
+                        except _errors.RequestBlocked:
+                            return {
+                                "success": False,
+                                "error": "YouTube Transcript API rate limited - please wait a few minutes",
+                                "retry": True
+                            }
+                        except Exception as e:
+                            return {
+                                "success": False,
+                                "error": str(e),
+                                "retry": True
+                            }
+
+        return {
+            "success": False,
+            "error": f"No transcript available in requested language: {requested_language}",
+            "retry": False
+        }
     
     def _sanitize_filename(self, name: str) -> str:
         """Remove invalid characters from filenames"""
-        if self.config.sanitize_filenames:
+        if self.config.transcripts.sanitize_filenames:
             return re.sub(r'[\\/*?:"<>|]', "_", name)
         return name
     
@@ -696,25 +833,31 @@ class FileManager:
 
         logging.info(f"{Fore.GREEN}File reorganization complete{Style.RESET_ALL}")
     
-    def save_transcript(self, transcript_data: List[Dict], video_info: Dict, 
+    def save_transcript(self, transcript_data: List[Dict], video_info: Dict,
                        language: str, output_dir: str, use_language_folders: bool) -> Dict:
         """Save transcript to file(s)"""
         results = {"saved_files": [], "skipped_files": []}
-        
+
         # Sanitize video title
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", video_info["title"])
-        
+
+        # Add timestamp prefix if configured
+        timestamp_prefix = ""
+        if self.config.transcripts.timestamp_prefix_format:
+            timestamp_prefix = datetime.now().strftime(self.config.transcripts.timestamp_prefix_format) + "_"
+
         # Determine file paths
         if use_language_folders:
             base_dir = os.path.join(output_dir, language)
         else:
             base_dir = output_dir
-        
+
         os.makedirs(base_dir, exist_ok=True)
-        
+
         # Save TXT format
-        if "txt" in self.config.download_formats:
-            txt_path = os.path.join(base_dir, f"{safe_title}_{language}.txt")
+        if "txt" in self.config.transcripts.download_formats:
+            txt_filename = f"{timestamp_prefix}{safe_title}_{language}.txt"
+            txt_path = os.path.join(base_dir, txt_filename)
             if os.path.exists(txt_path):
                 results["skipped_files"].append(txt_path)
             else:
@@ -725,16 +868,17 @@ class FileManager:
                     results["saved_files"].append(txt_path)
                 except Exception as e:
                     logging.error(f"Error saving TXT file: {e}")
-        
+
         # Save JSON format
-        if "json" in self.config.download_formats:
+        if "json" in self.config.transcripts.download_formats:
             if use_language_folders:
                 json_base_dir = os.path.join(base_dir, "json")
             else:
                 json_base_dir = os.path.join(output_dir, "json")
-            
+
             os.makedirs(json_base_dir, exist_ok=True)
-            json_path = os.path.join(json_base_dir, f"{safe_title}_{language}.json")
+            json_filename = f"{timestamp_prefix}{safe_title}_{language}.json"
+            json_path = os.path.join(json_base_dir, json_filename)
             
             if os.path.exists(json_path):
                 results["skipped_files"].append(json_path)
@@ -761,8 +905,8 @@ class RateLimiter:
     
     def apply_delay(self):
         """Apply controlled delay with jitter"""
-        jitter = self.config.base_delay * self.config.jitter_percentage * (random.random() * 2 - 1)
-        sleep_time = self.config.base_delay + jitter
+        jitter = self.config.rate_limiting.base_delay * self.config.rate_limiting.jitter_percentage * (random.random() * 2 - 1)
+        sleep_time = self.config.rate_limiting.base_delay + jitter
         time.sleep(sleep_time)
     
     def adjust_for_ban(self, current_delay: float, current_workers: int) -> Tuple[float, int]:
@@ -844,7 +988,7 @@ class ProgressReporter:
     
     def display_help(self):
         """Display help information"""
-        if self.config.show_progress:
+        if self.config.ui.show_progress:
             self.display_logo()
         
         print(f"{Fore.CYAN}=" * 80)
@@ -856,7 +1000,8 @@ class ProgressReporter:
         print("Files that already exist will be skipped, allowing you to resume or update channels.")
 
         print(f"\n{Fore.GREEN}USAGE:")
-        print("  python Youtube.Transcribe.v2.py [options] <channel_or_video_url(s)>")
+        print("  python Youtube_Transcribe.py [options] <channel_or_video_url(s)>")
+        print("  Or with uv: uv run python Youtube_Transcribe.py [options] <url(s)>")
 
         print(f"\n{Fore.GREEN}CONFIGURATION:")
         print("  --create-config     Create default config.toml file")
@@ -865,13 +1010,13 @@ class ProgressReporter:
 
         print(f"\n{Fore.GREEN}EXAMPLES:")
         print(f"{Fore.CYAN}  # Download transcript for a single YouTube video")
-        print("  python Youtube.Transcribe.v2.py https://www.youtube.com/watch?v=dQw4w9WgXcQ -en")
+        print("  uv run python Youtube_Transcribe.py https://www.youtube.com/watch?v=dQw4w9WgXcQ -en")
         print(f"{Fore.CYAN}  # Download English transcripts from a channel")
-        print("  python Youtube.Transcribe.v2.py https://www.youtube.com/channel/UC-lHJZR3Gqxm24_Vd_AJ5Yw -en")
+        print("  uv run python Youtube_Transcribe.py https://www.youtube.com/channel/UC-lHJZR3Gqxm24_Vd_AJ5Yw -en")
         print(f"{Fore.CYAN}  # Download multiple languages")
-        print("  python Youtube.Transcribe.v2.py https://youtube.com/c/channel1 -en -es -fr")
+        print("  uv run python Youtube_Transcribe.py https://youtube.com/c/channel1 -en -es -fr")
         print(f"{Fore.CYAN}  # Download all available languages")
-        print("  python Youtube.Transcribe.v2.py https://youtube.com/c/channel1 -all")
+        print("  uv run python Youtube_Transcribe.py https://youtube.com/c/channel1 -all")
 
         print(f"\n{Fore.GREEN}REQUIREMENTS:")
         print("  - python 3.6+")
@@ -939,13 +1084,13 @@ class YouTubeTranscriptDownloader:
         """Setup logging configuration"""
         handler = logging.StreamHandler()
         handler.setFormatter(ColoredFormatter("%(message)s"))
-        
+
         logger = logging.getLogger()
-        logger.setLevel(getattr(logging, self.config.log_level.upper()))
+        logger.setLevel(getattr(logging, self.config.logging.level.upper()))
         logger.addHandler(handler)
-        
-        if self.config.log_file:
-            file_handler = logging.FileHandler(self.config.log_file)
+
+        if self.config.logging.file:
+            file_handler = logging.FileHandler(self.config.logging.file)
             file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
             logger.addHandler(file_handler)
     
@@ -995,26 +1140,81 @@ class YouTubeTranscriptDownloader:
     def process_single_channel(self, channel_url: str, languages: List[str],
                               download_all: bool, formats: List[str]) -> Tuple[int, int, int]:
         """Process a single channel"""
+        # Check if this is a playlists URL
+        if "/playlists" in channel_url:
+            return self._process_playlists_url(channel_url, languages, download_all, formats)
+
         # Get channel name
         channel_name = self.youtube_api.get_channel_name(channel_url)
-        
+
         # Get video metadata
         videos_data = self.youtube_api.get_videos_from_channel(channel_url)
-        
+
         if not videos_data:
             logging.warning(f"No videos found for {channel_url}. Skipping channel.")
             return 0, 0, 0
-        
+
         # Download transcripts
-        return self.download_transcripts_batch(videos_data, languages, channel_name, 
+        return self.download_transcripts_batch(videos_data, languages, channel_name,
                                               download_all, formats)
+
+    def _process_playlists_url(self, channel_url: str, languages: List[str],
+                              download_all: bool, formats: List[str]) -> Tuple[int, int, int]:
+        """Process playlists URL - get all playlists and process each individually"""
+        logging.info(f"{Fore.YELLOW}Detected playlists URL - activating playlist mode{Style.RESET_ALL}")
+
+        # Get playlists from channel
+        playlists = self.youtube_api.get_playlists_from_channel(channel_url)
+
+        if not playlists:
+            logging.warning(f"No playlists found for {channel_url}")
+            return 0, 0, 0
+
+        # Get channel name
+        base_url = channel_url.replace("/playlists", "")
+        channel_name = self.youtube_api.get_channel_name(base_url)
+
+        total_downloaded = 0
+        total_skipped = 0
+        total_failed = 0
+
+        # Process each playlist individually
+        for i, playlist in enumerate(playlists):
+            playlist_id = playlist["id"]
+            playlist_title = sanitize_folder_name(playlist["title"])
+            playlist_url = f"https://www.youtube.com/playlist?list={playlist_id}"
+
+            print(f"\n{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}PLAYLIST {i + 1}/{len(playlists)}: {playlist_title}{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
+            logging.info(f"Processing playlist: {Fore.CYAN}{playlist_title}{Style.RESET_ALL}")
+
+            # Use folder structure: ChannelName/PlaylistName/
+            folder_name = playlist_title
+            videos_data = self.youtube_api.get_videos_from_channel(playlist_url)
+
+            if not videos_data:
+                logging.warning(f"No videos found in playlist '{playlist_title}'. Skipping.")
+                continue
+
+            # Download transcripts
+            downloaded, skipped, failed = self.download_transcripts_batch(
+                videos_data, languages, f"{channel_name}/{folder_name}",
+                download_all, formats
+            )
+
+            total_downloaded += downloaded
+            total_skipped += skipped
+            total_failed += failed
+
+        return total_downloaded, total_skipped, total_failed
     
     def download_transcripts_batch(self, videos: List[Dict], languages: List[str],
-                                  channel_name: str, download_all: bool, 
+                                  channel_name: str, download_all: bool,
                                   formats: List[str]) -> Tuple[int, int, int]:
         """Download transcripts in batches"""
         # Create output directory
-        output_dir = os.path.join(self.config.output_dir, channel_name)
+        output_dir = os.path.join(self.config.transcripts.output_dir, channel_name)
         os.makedirs(output_dir, exist_ok=True)
         
         # Detect existing languages
@@ -1031,9 +1231,9 @@ class YouTubeTranscriptDownloader:
         # If downloading all languages, get available languages
         if download_all and videos:
             first_video = videos[0]["id"]
-            available_langs = self.youtube_api.get_available_languages(first_video)
-            if available_langs:
-                languages = available_langs
+            available_transcripts = self.youtube_api.get_available_languages_with_quality(first_video)
+            if available_transcripts:
+                languages = [t["language_code"] for t in available_transcripts]
                 use_language_folders = True
                 self.file_manager.organize_files_by_language(output_dir, languages)
         
@@ -1057,11 +1257,11 @@ class YouTubeTranscriptDownloader:
         )
         
         while remaining_tasks:
-            batch_size = min(len(remaining_tasks), self.config.batch_size)
+            batch_size = min(len(remaining_tasks), self.config.transcripts.batch_size)
             current_batch = remaining_tasks[:batch_size]
-            
+
             with concurrent.futures.ThreadPoolExecutor(
-                max_workers=self.config.max_workers
+                max_workers=self.config.rate_limiting.max_workers
             ) as executor:
                 future_to_task = {}
                 for video, lang in current_batch:
@@ -1116,19 +1316,19 @@ class YouTubeTranscriptDownloader:
         """Download a single transcript with retry logic"""
         video_id = video["id"]
         
-        for attempt in range(self.config.max_retries):
+        for attempt in range(self.config.rate_limiting.max_retries):
             # Apply rate limiting
             self.rate_limiter.apply_delay()
-            
+
             # Download transcript
             result = self.youtube_api.download_transcript(video_id, language)
-            
+
             if result["success"]:
                 # Save to file
                 save_result = self.file_manager.save_transcript(
                     result["transcript"], video, language, output_dir, use_language_folders
                 )
-                
+
                 if save_result["saved_files"]:
                     title_display = video["title"][:40] + "..." if len(video["title"]) > 40 else video["title"]
                     print(f"[{Fore.GREEN}OK{Style.RESET_ALL}  ] {title_display} ({language})")
@@ -1142,14 +1342,14 @@ class YouTubeTranscriptDownloader:
                 return {"success": False, "skipped": False}
             else:
                 # Retryable error
-                if attempt < self.config.max_retries - 1:
-                    sleep_time = self.config.base_delay * (self.config.retry_backoff_factor ** attempt)
+                if attempt < self.config.rate_limiting.max_retries - 1:
+                    sleep_time = self.config.rate_limiting.base_delay * (self.config.rate_limiting.retry_backoff_factor ** attempt)
                     time.sleep(sleep_time)
                 else:
                     title_display = video["title"][:40] + "..." if len(video["title"]) > 40 else video["title"]
                     print(f"[{Fore.RED}FAIL{Style.RESET_ALL}] {title_display} ({language}) - {result['error']}")
                     return {"success": False, "skipped": False}
-        
+
         return {"success": False, "skipped": False}
 
 
@@ -1187,7 +1387,7 @@ class ConfigManager:
                         "default_language": "en",
                         "auto_detect_language": True,
                         "language_priority": ["en"],
-                        "concurrent_workers": 3,
+                        "concurrent_workers": 1,
                         "batch_size": 100,
                         "max_videos_per_channel": 0,
                         "organize_existing": True,
@@ -1196,7 +1396,7 @@ class ConfigManager:
                     },
                     "rate_limiting": {
                         "base_delay": 1.5,
-                        "max_workers": 3,
+                        "max_workers": 1,
                         "max_retries": 3,
                         "retry_backoff_factor": 2.0,
                         "jitter_percentage": 0.2,
@@ -1419,6 +1619,23 @@ def get_system_language() -> str:
 
     logging.info(f"Defaulting to {Fore.CYAN}English (en){Style.RESET_ALL}")
     return "en"
+
+
+def sanitize_folder_name(name: str) -> str:
+    """Sanitize folder name for filesystem use"""
+    # Remove or replace invalid characters
+    sanitized = re.sub(r'[<>:"/\\|?*]', '_', name)
+    # Remove control characters
+    sanitized = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', sanitized)
+    # Remove leading/trailing dots and spaces
+    sanitized = sanitized.strip('. ')
+    # Truncate to reasonable length
+    if len(sanitized) > 200:
+        sanitized = sanitized[:200]
+    # Ensure not empty
+    if not sanitized:
+        sanitized = "Untitled"
+    return sanitized
 
 
 def main():
