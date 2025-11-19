@@ -20,6 +20,7 @@ import signal
 import shutil
 import random
 import logging
+from datetime import datetime
 from dataclasses import dataclass, field
 from typing import List, Dict, Set, Tuple
 
@@ -359,29 +360,51 @@ class ColoredFormatter(logging.Formatter):
 
 class YouTubeAPIAdapter:
     """Handles all YouTube API operations (Single Responsibility Principle)"""
-    
+
     def __init__(self, config: DownloadConfig):
         self.config = config
         self.active_processes = []
-    
+
+    def _log_ytdlp_command(self, command: List[str], url: str, purpose: str = ""):
+        """Log yt-dlp command for debugging"""
+        if self.config.logging.log_ytdlp_commands:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cmd_str = " ".join(command)
+            log_entry = f"""
+[{timestamp}] Executing yt-dlp ({purpose}):
+  Command: {cmd_str}
+  URL: {url}
+========================================
+"""
+            with open(self.config.logging.command_log_file, "a") as f:
+                f.write(log_entry)
+
     def get_channel_name(self, channel_url: str) -> str:
         """Get channel name using yt-dlp"""
         logging.info("Retrieving channel name...")
-        
+
         spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
         spinner_idx = 0
         process = None
 
         try:
-            command = [
-                "yt-dlp",
-                "--skip-download",
+            # Build command using config
+            command = ["yt-dlp"]
+
+            # Add yt-dlp flags from config
+            command.extend(self.config.yt_dlp.to_yt_dlp_flags())
+
+            # Add channel name extraction
+            command.extend([
                 "--print",
                 "%(channel)s",
                 "--playlist-items",
                 "1",
                 channel_url,
-            ]
+            ])
+
+            # Log command
+            self._log_ytdlp_command(command, channel_url, "get channel name")
 
             logging.debug(f"Running command: {' '.join(command)}")
             process = subprocess.Popen(
@@ -431,13 +454,22 @@ class YouTubeAPIAdapter:
         print(f"{Fore.CYAN}Executing yt-dlp... (please wait){Style.RESET_ALL}")
 
         try:
-            command = [
-                "yt-dlp",
+            # Build command using config
+            command = ["yt-dlp"]
+
+            # Add yt-dlp flags from config
+            command.extend(self.config.yt_dlp.to_yt_dlp_flags())
+
+            # Add video extraction
+            command.extend([
                 "--flat-playlist",
                 "--print",
                 "%(id)s %(title)s",
                 channel_url,
-            ]
+            ])
+
+            # Log command
+            self._log_ytdlp_command(command, channel_url, "get videos list")
 
             logging.debug(f"Running command: {' '.join(command)}")
 
@@ -446,7 +478,7 @@ class YouTubeAPIAdapter:
             )
             self.active_processes.append(process)
 
-            stdout, stderr = process.communicate(timeout=self.config.api_timeout)
+            stdout, stderr = process.communicate(timeout=self.config.api_settings.api_timeout)
             self.active_processes.remove(process)
 
             if not stdout.strip():
@@ -456,8 +488,8 @@ class YouTubeAPIAdapter:
             videos_data = []
             lines = stdout.strip().split("\n")
 
-            if self.config.max_videos_per_channel > 0:
-                lines = lines[:self.config.max_videos_per_channel]
+            if self.config.transcripts.max_videos_per_channel > 0:
+                lines = lines[:self.config.transcripts.max_videos_per_channel]
 
             print(f"{Fore.GREEN}Found {len(lines)} videos. Processing...{Style.RESET_ALL}")
 
@@ -761,8 +793,8 @@ class RateLimiter:
     
     def apply_delay(self):
         """Apply controlled delay with jitter"""
-        jitter = self.config.base_delay * self.config.jitter_percentage * (random.random() * 2 - 1)
-        sleep_time = self.config.base_delay + jitter
+        jitter = self.config.rate_limiting.base_delay * self.config.rate_limiting.jitter_percentage * (random.random() * 2 - 1)
+        sleep_time = self.config.rate_limiting.base_delay + jitter
         time.sleep(sleep_time)
     
     def adjust_for_ban(self, current_delay: float, current_workers: int) -> Tuple[float, int]:
@@ -1057,11 +1089,11 @@ class YouTubeTranscriptDownloader:
         )
         
         while remaining_tasks:
-            batch_size = min(len(remaining_tasks), self.config.batch_size)
+            batch_size = min(len(remaining_tasks), self.config.transcripts.batch_size)
             current_batch = remaining_tasks[:batch_size]
-            
+
             with concurrent.futures.ThreadPoolExecutor(
-                max_workers=self.config.max_workers
+                max_workers=self.config.rate_limiting.max_workers
             ) as executor:
                 future_to_task = {}
                 for video, lang in current_batch:
@@ -1116,19 +1148,19 @@ class YouTubeTranscriptDownloader:
         """Download a single transcript with retry logic"""
         video_id = video["id"]
         
-        for attempt in range(self.config.max_retries):
+        for attempt in range(self.config.rate_limiting.max_retries):
             # Apply rate limiting
             self.rate_limiter.apply_delay()
-            
+
             # Download transcript
             result = self.youtube_api.download_transcript(video_id, language)
-            
+
             if result["success"]:
                 # Save to file
                 save_result = self.file_manager.save_transcript(
                     result["transcript"], video, language, output_dir, use_language_folders
                 )
-                
+
                 if save_result["saved_files"]:
                     title_display = video["title"][:40] + "..." if len(video["title"]) > 40 else video["title"]
                     print(f"[{Fore.GREEN}OK{Style.RESET_ALL}  ] {title_display} ({language})")
@@ -1142,14 +1174,14 @@ class YouTubeTranscriptDownloader:
                 return {"success": False, "skipped": False}
             else:
                 # Retryable error
-                if attempt < self.config.max_retries - 1:
-                    sleep_time = self.config.base_delay * (self.config.retry_backoff_factor ** attempt)
+                if attempt < self.config.rate_limiting.max_retries - 1:
+                    sleep_time = self.config.rate_limiting.base_delay * (self.config.rate_limiting.retry_backoff_factor ** attempt)
                     time.sleep(sleep_time)
                 else:
                     title_display = video["title"][:40] + "..." if len(video["title"]) > 40 else video["title"]
                     print(f"[{Fore.RED}FAIL{Style.RESET_ALL}] {title_display} ({language}) - {result['error']}")
                     return {"success": False, "skipped": False}
-        
+
         return {"success": False, "skipped": False}
 
 
