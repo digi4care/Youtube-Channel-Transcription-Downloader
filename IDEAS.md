@@ -92,13 +92,13 @@ This document outlines potential ideas and concepts for the YouTube Transcript D
   ```bash
 
   # Start API server
-  python Youtube.Transcribe.py --api-server
-  
+  python Youtube_Transcribe.py --api-server
+
   # With custom settings
-  python Youtube.Transcribe.py --api-server --host 0.0.0.0 --port 8080
-  
+  python Youtube_Transcribe.py --api-server --host 0.0.0.0 --port 8080
+
   # Normal CLI mode (unchanged)
-  python Youtube.Transcribe.py https://youtube.com/c/channel1 -en
+  python Youtube_Transcribe.py https://youtube.com/c/channel1 --transcript en
 
   ```
 
@@ -107,7 +107,7 @@ This document outlines potential ideas and concepts for the YouTube Transcript D
 ```python
 
 Youtube-Channel-Transcription-Downloader/
-├── Youtube.Transcribe.py          # Main CLI script
+├── Youtube_Transcribe.py          # Main CLI script
 ├── api_server.py                  # FastAPI application
 ├── api/
 │   ├── __init__.py

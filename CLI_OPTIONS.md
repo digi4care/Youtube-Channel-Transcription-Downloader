@@ -24,17 +24,9 @@ Configuration settings are applied in the following priority order (highest to l
 
 ### `--create-config`
 
-<<<<<<< HEAD
 Create a default `config.toml` file with all available options.
 
 **Example:**
-=======
-
-Create a default `config.toml` file with all available options.
-
-**Example:**
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py --create-config
@@ -42,17 +34,9 @@ uv run python Youtube_Transcribe.py --create-config
 
 ### `--show-config`
 
-<<<<<<< HEAD
 Display the current configuration (after applying all overrides).
 
 **Example:**
-=======
-
-Display the current configuration (after applying all overrides).
-
-**Example:**
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py --show-config
@@ -60,17 +44,9 @@ uv run python Youtube_Transcribe.py --show-config
 
 ### `-h, --help`
 
-<<<<<<< HEAD
 Show the help message with usage instructions and examples.
 
 **Example:**
-=======
-
-Show the help message with usage instructions and examples.
-
-**Example:**
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py --help
@@ -84,19 +60,11 @@ These flags are passed directly to yt-dlp with the same names and behavior. See 
 
 ### `--output-template TEMPLATE`
 
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
 Override the yt-dlp output template for video filenames.
 
 **Default:** `%(title)s [%(id)s].%(ext)s`
 
 **Example:**
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py --output-template "%(upload_date>%Y-%m-%d)s - %(title)s.%(ext)s" <URL>
@@ -104,19 +72,11 @@ uv run python Youtube_Transcribe.py --output-template "%(upload_date>%Y-%m-%d)s 
 
 ### `--skip-download`
 
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
 Skip video download (transcripts only mode).
 
 **Default:** `True`
 
 **Example:**
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py --skip-download <URL>
@@ -124,17 +84,9 @@ uv run python Youtube_Transcribe.py --skip-download <URL>
 
 ### `--format FORMAT`
 
-<<<<<<< HEAD
 Video format selector for yt-dlp.
 
 **Example:**
-=======
-
-Video format selector for yt-dlp.
-
-**Example:**
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py --format "bestvideo+bestaudio/best" <URL>
@@ -142,17 +94,9 @@ uv run python Youtube_Transcribe.py --format "bestvideo+bestaudio/best" <URL>
 
 ### `--format-sort SORTORDER`
 
-<<<<<<< HEAD
 Format sort order for yt-dlp.
 
 **Example:**
-=======
-
-Format sort order for yt-dlp.
-
-**Example:**
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py --format-sort "res,codec" <URL>
@@ -160,17 +104,9 @@ uv run python Youtube_Transcribe.py --format-sort "res,codec" <URL>
 
 ### `--sleep-interval SECONDS`
 
-<<<<<<< HEAD
 Seconds to sleep between requests (yt-dlp rate limiting).
 
 **Example:**
-=======
-
-Seconds to sleep between requests (yt-dlp rate limiting).
-
-**Example:**
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py --sleep-interval 2.0 <URL>
@@ -178,17 +114,9 @@ uv run python Youtube_Transcribe.py --sleep-interval 2.0 <URL>
 
 ### `--verbose`
 
-<<<<<<< HEAD
 Enable verbose yt-dlp output.
 
 **Example:**
-=======
-
-Enable verbose yt-dlp output.
-
-**Example:**
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py --verbose <URL>
@@ -196,17 +124,9 @@ uv run python Youtube_Transcribe.py --verbose <URL>
 
 ### `--quiet`
 
-<<<<<<< HEAD
 Enable quiet yt-dlp output (suppress warnings).
 
 **Example:**
-=======
-
-Enable quiet yt-dlp output (suppress warnings).
-
-**Example:**
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py --quiet <URL>
@@ -220,10 +140,6 @@ These flags control transcript-specific behavior.
 
 ### `--transcript-format FORMAT`
 
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
 Transcript format to download.
 
 **Choices:** `txt`, `json`, `srt`, `vtt`
@@ -231,10 +147,6 @@ Transcript format to download.
 **Default:** `txt, json` (both)
 
 **Example:**
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py --transcript-format json <URL>
@@ -242,10 +154,6 @@ uv run python Youtube_Transcribe.py --transcript-format json <URL>
 
 ### `--concurrent-workers N`
 
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
 Number of concurrent transcript downloads.
 
 **Default:** `3`
@@ -253,10 +161,6 @@ Number of concurrent transcript downloads.
 **Range:** 1-10
 
 **Example:**
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py --concurrent-workers 5 <URL>
@@ -264,19 +168,11 @@ uv run python Youtube_Transcribe.py --concurrent-workers 5 <URL>
 
 ### `--batch-size N`
 
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
 Number of videos to process per batch.
 
 **Default:** `100`
 
 **Example:**
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py --batch-size 50 <URL>
@@ -284,19 +180,11 @@ uv run python Youtube_Transcribe.py --batch-size 50 <URL>
 
 ### `--default-language CODE`
 
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
 Default transcript language code.
 
 **Default:** `en`
 
 **Example:**
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py --default-language es <URL>
@@ -304,19 +192,11 @@ uv run python Youtube_Transcribe.py --default-language es <URL>
 
 ### `--overwrite-existing`
 
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
 Overwrite existing transcript files.
 
 **Default:** `False` (skip existing files)
 
 **Example:**
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py --overwrite-existing <URL>
@@ -324,19 +204,11 @@ uv run python Youtube_Transcribe.py --overwrite-existing <URL>
 
 ### `--no-organize`
 
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
 Disable file organization into language folders.
 
 **Default:** `False` (organize enabled)
 
 **Example:**
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py --no-organize <URL>
@@ -348,27 +220,15 @@ uv run python Youtube_Transcribe.py --no-organize <URL>
 
 ### `-t LANG, --transcript LANG`
 
-<<<<<<< HEAD
 Specify transcript language code. Can be repeated for multiple languages.
 
 **Example:**
-=======
-
-Specify transcript language code. Can be repeated for multiple languages.
-
-**Example:**
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py <URL> -t en -t es -t fr
 ```
 
 **Shorthand:**
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py <URL> -en -es -fr
@@ -376,17 +236,9 @@ uv run python Youtube_Transcribe.py <URL> -en -es -fr
 
 ### `-all`
 
-<<<<<<< HEAD
 Download all available languages for each video.
 
 **Example:**
-=======
-
-Download all available languages for each video.
-
-**Example:**
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py <URL> -all
@@ -394,17 +246,9 @@ uv run python Youtube_Transcribe.py <URL> -all
 
 ### `-txt`
 
-<<<<<<< HEAD
 Download only TXT format (no JSON).
 
 **Example:**
-=======
-
-Download only TXT format (no JSON).
-
-**Example:**
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py <URL> -txt
@@ -412,17 +256,9 @@ uv run python Youtube_Transcribe.py <URL> -txt
 
 ### `-json`
 
-<<<<<<< HEAD
 Download only JSON format (no TXT).
 
 **Example:**
-=======
-
-Download only JSON format (no TXT).
-
-**Example:**
-
->>>>>>> feature/phase2-ytdlp-integration
 
 ```bash
 uv run python Youtube_Transcribe.py <URL> -json
@@ -439,10 +275,6 @@ uv run python Youtube_Transcribe.py <URL1> <URL2> <URL3>
 ```
 
 **Supported URL types:**
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
 
 - Single video: `https://www.youtube.com/watch?v=VIDEO_ID`
 - Channel: `https://www.youtube.com/channel/CHANNEL_ID`
@@ -589,29 +421,17 @@ uv run python Youtube_Transcribe.py --show-config
 
 ### Common Issues
 
-**"No transcript available"**
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
+#### "No transcript available"
 
 - Video doesn't have subtitles or they're disabled
 - Try a different language
 
-**"Rate limited"**
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
+#### "Rate limited"
 
 - YouTube is temporarily blocking your IP
 - Wait 5-7 minutes and try again with slower settings
 
-**"Video unavailable"**
-<<<<<<< HEAD
-=======
-
->>>>>>> feature/phase2-ytdlp-integration
+#### "Video unavailable"
 
 - Video is private, deleted, or region-locked
 - Cannot be processed
