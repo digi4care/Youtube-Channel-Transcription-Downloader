@@ -40,7 +40,10 @@ def create_mock_transcript_list(langs):
 
 class MockYouTubeTranscriptApi:
     def __init__(self):
-        self.list_transcripts = lambda x: create_mock_transcript_list(["en", "es", "fr"])
+        pass
+
+    def list(self, video_id):
+        return create_mock_transcript_list(["en", "es", "fr"])
 
     def fetch(self, video_id, languages):
         return MockTranscript(languages[0], is_manual=languages[0] == "en")

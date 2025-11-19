@@ -10,14 +10,20 @@ class MockModule:
 
 # Create mock modules
 youtube_transcript_api = MockModule()
-youtube_transcript_api.YouTubeTranscriptApi = lambda: None
 youtube_transcript_api._errors = MockModule()
 
 class MockTranscriptList:
     def __iter__(self):
         return iter([])
 
-youtube_transcript_api.YouTubeTranscriptApi.list_transcripts = lambda x: MockTranscriptList()
+class MockYouTubeTranscriptApi:
+    def __init__(self):
+        pass
+
+    def list(self, video_id):
+        return MockTranscriptList()
+
+youtube_transcript_api.YouTubeTranscriptApi = lambda: MockYouTubeTranscriptApi()
 
 tqdm = MockModule()
 tqdm.tqdm = lambda *args, **kwargs: type('MockTqdm', (), {
