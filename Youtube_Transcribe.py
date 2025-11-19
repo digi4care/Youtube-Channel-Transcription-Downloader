@@ -127,6 +127,7 @@ class TranscriptOptions:
     download_formats: List[str] = field(default_factory=lambda: ["txt", "json"])
     use_language_folders: bool = True
     sanitize_filenames: bool = True
+    output_dir: str = "./downloads"
 
     # Language handling
     default_language: str = "en"
@@ -585,7 +586,7 @@ class YouTubeAPIAdapter:
     
     def _sanitize_filename(self, name: str) -> str:
         """Remove invalid characters from filenames"""
-        if self.config.sanitize_filenames:
+        if self.config.transcripts.sanitize_filenames:
             return re.sub(r'[\\/*?:"<>|]', "_", name)
         return name
     
@@ -745,7 +746,7 @@ class FileManager:
         os.makedirs(base_dir, exist_ok=True)
         
         # Save TXT format
-        if "txt" in self.config.download_formats:
+        if "txt" in self.config.transcripts.download_formats:
             txt_path = os.path.join(base_dir, f"{safe_title}_{language}.txt")
             if os.path.exists(txt_path):
                 results["skipped_files"].append(txt_path)
@@ -757,9 +758,9 @@ class FileManager:
                     results["saved_files"].append(txt_path)
                 except Exception as e:
                     logging.error(f"Error saving TXT file: {e}")
-        
+
         # Save JSON format
-        if "json" in self.config.download_formats:
+        if "json" in self.config.transcripts.download_formats:
             if use_language_folders:
                 json_base_dir = os.path.join(base_dir, "json")
             else:
@@ -971,13 +972,13 @@ class YouTubeTranscriptDownloader:
         """Setup logging configuration"""
         handler = logging.StreamHandler()
         handler.setFormatter(ColoredFormatter("%(message)s"))
-        
+
         logger = logging.getLogger()
-        logger.setLevel(getattr(logging, self.config.log_level.upper()))
+        logger.setLevel(getattr(logging, self.config.logging.level.upper()))
         logger.addHandler(handler)
-        
-        if self.config.log_file:
-            file_handler = logging.FileHandler(self.config.log_file)
+
+        if self.config.logging.file:
+            file_handler = logging.FileHandler(self.config.logging.file)
             file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
             logger.addHandler(file_handler)
     
@@ -1042,11 +1043,11 @@ class YouTubeTranscriptDownloader:
                                               download_all, formats)
     
     def download_transcripts_batch(self, videos: List[Dict], languages: List[str],
-                                  channel_name: str, download_all: bool, 
+                                  channel_name: str, download_all: bool,
                                   formats: List[str]) -> Tuple[int, int, int]:
         """Download transcripts in batches"""
         # Create output directory
-        output_dir = os.path.join(self.config.output_dir, channel_name)
+        output_dir = os.path.join(self.config.transcripts.output_dir, channel_name)
         os.makedirs(output_dir, exist_ok=True)
         
         # Detect existing languages

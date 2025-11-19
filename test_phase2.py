@@ -51,7 +51,7 @@ sys.modules['toml'] = toml
 
 # Now import the module
 sys.path.insert(0, '.')
-from Youtube.Transcribe import DownloadConfig, YouTubeAPIAdapter
+from Youtube_Transcribe import DownloadConfig, YouTubeAPIAdapter
 
 def test_config_structure():
     """Test new config structure"""
@@ -60,7 +60,7 @@ def test_config_structure():
     config = DownloadConfig()
     print(f"✓ YTDLPOptions: {hasattr(config, 'yt_dlp')}")
     print(f"✓ TranscriptOptions: {hasattr(config, 'transcripts')}")
-    print(f"✓ RateLimiting: {hasattr(config, 'rate_liming')}")
+    print(f"✓ RateLimiting: {hasattr(config, 'rate_limiting')}")
     print(f"✓ Logging: {hasattr(config, 'logging')}")
 
     flags = config.yt_dlp.to_yt_dlp_flags()

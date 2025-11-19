@@ -1,3 +1,17 @@
+[transcripts]
+download_formats = [ "txt", "json",]
+use_language_folders = true
+sanitize_filenames = true
+default_language = "en"
+auto_detect_language = true
+language_priority = [ "en",]
+concurrent_workers = 3
+batch_size = 100
+max_videos_per_channel = 0
+organize_existing = true
+timestamp_prefix_format = ""
+overwrite_existing = false
+
 [rate_limiting]
 base_delay = 1.5
 max_workers = 3
@@ -5,40 +19,48 @@ max_retries = 3
 retry_backoff_factor = 2.0
 jitter_percentage = 0.2
 ban_recovery_time = [ 300, 420,]
-
-[file_handling]
-output_dir = "./downloads"
-use_language_folders = true
-download_formats = [ "txt", "json",]
-sanitize_filenames = true
+rate_strategy = "balanced"
 
 [api_settings]
 api_timeout = 600
-batch_size = 100
-max_videos_per_channel = 0
+enable_cache = true
+cache_dir = "./cache"
+cache_expiry_hours = 24
 
-[ui_settings]
+[ui]
 show_progress = true
 clear_screen = true
 show_errors = true
 color_scheme = "default"
 
-[advanced]
-enable_cache = true
-cache_dir = "./cache"
-cache_expiry_hours = 24
-log_level = "INFO"
-log_file = ""
-
-[rate_limiting_strategies]
-strategy = "balanced"
+[logging]
+level = "INFO"
+file = ""
+log_ytdlp_commands = true
+command_log_file = "ytdlp_commands.log"
 
 [performance]
 memory_usage = "medium"
 network_speed = "medium"
 cpu_cores = 0
 
-[rate_limiting_strategies.multipliers]
+[yt_dlp.options]
+output = "%(title)s [%(id)s].%(ext)s"
+skip_download = true
+max_downloads = 0
+playlist_items = ""
+concurrent_fragments = 1
+sleep_interval = 0.0
+max_sleep_interval = 20
+retry_sleep = ""
+format = ""
+format_sort = ""
+restrict_filenames = false
+no_warnings = false
+verbose = false
+quiet = false
+
+[rate_limiting.strategy_multipliers]
 conservative = 3.0
 balanced = 1.0
 aggressive = 0.5
