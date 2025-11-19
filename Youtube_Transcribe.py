@@ -901,7 +901,7 @@ class ProgressReporter:
     
     def display_help(self):
         """Display help information"""
-        if self.config.show_progress:
+        if self.config.ui.show_progress:
             self.display_logo()
         
         print(f"{Fore.CYAN}=" * 80)
@@ -913,7 +913,8 @@ class ProgressReporter:
         print("Files that already exist will be skipped, allowing you to resume or update channels.")
 
         print(f"\n{Fore.GREEN}USAGE:")
-        print("  python Youtube.Transcribe.v2.py [options] <channel_or_video_url(s)>")
+        print("  python Youtube_Transcribe.py [options] <channel_or_video_url(s)>")
+        print("  Or with uv: uv run python Youtube_Transcribe.py [options] <url(s)>")
 
         print(f"\n{Fore.GREEN}CONFIGURATION:")
         print("  --create-config     Create default config.toml file")
@@ -922,13 +923,13 @@ class ProgressReporter:
 
         print(f"\n{Fore.GREEN}EXAMPLES:")
         print(f"{Fore.CYAN}  # Download transcript for a single YouTube video")
-        print("  python Youtube.Transcribe.v2.py https://www.youtube.com/watch?v=dQw4w9WgXcQ -en")
+        print("  uv run python Youtube_Transcribe.py https://www.youtube.com/watch?v=dQw4w9WgXcQ -en")
         print(f"{Fore.CYAN}  # Download English transcripts from a channel")
-        print("  python Youtube.Transcribe.v2.py https://www.youtube.com/channel/UC-lHJZR3Gqxm24_Vd_AJ5Yw -en")
+        print("  uv run python Youtube_Transcribe.py https://www.youtube.com/channel/UC-lHJZR3Gqxm24_Vd_AJ5Yw -en")
         print(f"{Fore.CYAN}  # Download multiple languages")
-        print("  python Youtube.Transcribe.v2.py https://youtube.com/c/channel1 -en -es -fr")
+        print("  uv run python Youtube_Transcribe.py https://youtube.com/c/channel1 -en -es -fr")
         print(f"{Fore.CYAN}  # Download all available languages")
-        print("  python Youtube.Transcribe.v2.py https://youtube.com/c/channel1 -all")
+        print("  uv run python Youtube_Transcribe.py https://youtube.com/c/channel1 -all")
 
         print(f"\n{Fore.GREEN}REQUIREMENTS:")
         print("  - python 3.6+")
