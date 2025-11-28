@@ -144,6 +144,9 @@ class TranscriptOptions:
     timestamp_prefix_format: str = ""
     overwrite_existing: bool = False
 
+    # Archive functionality
+    enable_archive: bool = True  # Enable/disable archive-based resume functionality
+
 
 @dataclass
 class RateLimiting:
@@ -712,6 +715,10 @@ class FileManager:
     def __init__(self, config: DownloadConfig):
         self.config = config
     
+    def get_archive_path(self, channel_dir: str) -> str:
+        """Get the path to the archive file for a channel"""
+        return os.path.join(channel_dir, ".transcript_archive.txt")
+    
     def detect_existing_languages(self, channel_dir: str) -> Set[str]:
         """Detect existing transcript languages in a channel directory"""
         languages = set()
@@ -891,6 +898,63 @@ class FileManager:
                     logging.error(f"Error saving JSON file: {e}")
         
         return results
+
+
+class ArchiveManager:
+    """Handles archive file operations for resume functionality"""
+
+    def __init__(self, config: DownloadConfig):
+        self.config = config
+
+    def load_processed_videos(self, archive_path: str) -> Set[str]:
+        """Load set of already processed video IDs from archive file"""
+        processed_videos = set()
+
+        if not os.path.exists(archive_path):
+            logging.debug(f"Archive file does not exist: {archive_path}")
+            return processed_videos
+
+        try:
+            with open(archive_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    video_id = line.strip()
+                    if video_id:  # Skip empty lines
+                        processed_videos.add(video_id)
+            logging.debug(f"Loaded {len(processed_videos)} processed video IDs from archive")
+        except Exception as e:
+            logging.warning(f"Error reading archive file {archive_path}: {e}")
+
+        return processed_videos
+
+    def add_processed_video(self, archive_path: str, video_id: str):
+        """Add a video ID to the archive file"""
+        try:
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(archive_path), exist_ok=True)
+
+            with open(archive_path, 'a', encoding='utf-8') as f:
+                f.write(f"{video_id}\n")
+            logging.debug(f"Added video ID {video_id} to archive")
+        except Exception as e:
+            logging.error(f"Error writing to archive file {archive_path}: {e}")
+
+    def filter_new_videos(self, videos: List[Dict], processed_videos: Set[str]) -> List[Dict]:
+        """Filter video list to only include videos not yet processed"""
+        new_videos = []
+        skipped_count = 0
+
+        for video in videos:
+            video_id = video.get("id")
+            if video_id and video_id not in processed_videos:
+                new_videos.append(video)
+            else:
+                skipped_count += 1
+                logging.debug(f"Skipping already processed video: {video_id}")
+
+        if skipped_count > 0:
+            logging.info(f"Skipped {skipped_count} already processed video(s), processing {len(new_videos)} new video(s)")
+
+        return new_videos
 
 
 class RateLimiter:
@@ -1077,6 +1141,7 @@ class YouTubeTranscriptDownloader:
         self.file_manager = FileManager(config)
         self.rate_limiter = RateLimiter(config)
         self.progress_reporter = ProgressReporter(config)
+        self.archive_manager = ArchiveManager(config)
         self._setup_logging()
         self._setup_signal_handlers()
     
@@ -1216,6 +1281,16 @@ class YouTubeTranscriptDownloader:
         # Create output directory
         output_dir = os.path.join(self.config.transcripts.output_dir, channel_name)
         os.makedirs(output_dir, exist_ok=True)
+
+        # Archive functionality - only if enabled
+        if self.config.transcripts.enable_archive:
+            archive_path = self.file_manager.get_archive_path(output_dir)
+            processed_videos = self.archive_manager.load_processed_videos(archive_path)
+            videos = self.archive_manager.filter_new_videos(videos, processed_videos)
+            
+            if not videos:
+                logging.info(f"All {len(processed_videos)} videos in {channel_name} already processed. Skipping channel.")
+                return 0, len(processed_videos), 0
         
         # Detect existing languages
         existing_languages = self.file_manager.detect_existing_languages(output_dir)
@@ -1283,6 +1358,10 @@ class YouTubeTranscriptDownloader:
                                 skipped += 1
                             else:
                                 successful += 1
+                                # Archive functionality: add to archive if enabled and successful
+                                if self.config.transcripts.enable_archive:
+                                    archive_path = self.file_manager.get_archive_path(output_dir)
+                                    self.archive_manager.add_processed_video(archive_path, video["id"])
                         else:
                             failed += 1
                     except Exception:
