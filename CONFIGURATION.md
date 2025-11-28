@@ -111,7 +111,7 @@ Choose between basic and advanced filename sanitization:
 "café spécial.mp4" → "cafe-special.mp4"  # WordPress-style cleaning
 ```
 
-### Configuration
+### Filename Sanitization Configuration
 
 ```toml
 [transcripts]
@@ -147,7 +147,7 @@ YouTube monitors API requests and may temporarily block IPs that make too many r
 - **After ban lifted**: Continue with slow settings for 5-7 minutes, then reduce to half speed
 - **Repeat halving** until bans stop permanently
 
-### Configuration
+### Rate Limiting Configuration
 
 ```toml
 [rate_limiting]
