@@ -13,9 +13,11 @@
 This version includes various improvements and extensions over the original project. You're welcome to contribute to make it even better!
 
 ### 📋 What's New
+
 See **[CHANGELOG.md](CHANGELOG.md)** for detailed version history and feature updates.
 
 ### Key Features (v2.2)
+
 - ✅ **Archive & Resume**: Automatic recovery from rate limiting interruptions
 - ✅ **Advanced Filename Sanitization**: Optional WordPress-style filename cleaning
 - ✅ **Smart Language Detection**: Only when needed, respects explicit language choices
