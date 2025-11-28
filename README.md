@@ -325,11 +325,11 @@ De archive functionaliteit houdt automatisch bij welke videos al succesvol gedow
 
 ```bash
 # Eerste run - grote kanaal met 100 videos
-uv run python Youtube_Transcribe.py https://youtube.com/@BigChannel -en
+uv run python Youtube_Transcribe.py https://youtube.com/@BigChannel -t en
 # Downloadt eerste 40 videos, raakt rate limit
 
 # Volgende dag - hervat automatisch
-uv run python Youtube_Transcribe.py https://youtube.com/@BigChannel -en
+uv run python Youtube_Transcribe.py https://youtube.com/@BigChannel -t en
 # Slaat eerste 40 over, downloadt videos 41-80
 # Archive bestand toont: 80 verwerkte videos
 ```
