@@ -1763,9 +1763,11 @@ def main():
     # Get languages
     languages = []
     if hasattr(args, 'languages') and args.languages:
+        # Explicit languages provided via command line - use them directly
         languages = args.languages
+        logging.info(f"Using explicitly specified language(s): {Fore.CYAN}{', '.join(languages)}{Style.RESET_ALL}")
     elif not args.all:
-        # Auto-detect system language or use default
+        # No explicit languages and not downloading all - auto-detect system language
         if config.transcripts.auto_detect_language:
             detected_lang = get_system_language()
             languages = [detected_lang]
