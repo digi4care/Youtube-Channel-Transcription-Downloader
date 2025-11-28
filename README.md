@@ -336,7 +336,7 @@ uv run python Youtube_Transcribe.py https://youtube.com/@BigChannel -en
 
 ### Archive Bestand Formaat
 
-```
+```text
 downloads/BigChannel/.transcript_archive.txt
 ├── V5IhsHEHXOg  # Video ID 1
 ├── dQw4w9WgXcQ  # Video ID 2
