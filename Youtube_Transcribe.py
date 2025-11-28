@@ -1739,7 +1739,6 @@ def sanitize_filename(filename: str, advanced_mode: bool = False) -> str:
         return re.sub(r'[\\/*?:"<>|]', '_', filename)
 
     # Advanced mode: WordPress-style sanitization
-    filename_raw = filename
 
     # Remove accents (simplified version - no external unicodedata needed)
     # Basic accent removal for common characters
