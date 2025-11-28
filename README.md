@@ -12,6 +12,15 @@
 
 This version includes various improvements and extensions over the original project. You're welcome to contribute to make it even better!
 
+### Version 2.1 - Archive & Resume (Latest)
+
+The v2.1 version includes all v2.0 features plus:
+
+- **Archive & Resume**: Automatically resume interrupted downloads after rate limiting
+- **API Rate Limit Optimization**: No wasted API calls on already processed videos
+- **Per-Channel Archive Files**: Safe parallel processing of multiple channels
+- **Smart Detection**: Automatically skips processed videos on subsequent runs
+
 ### Version 2.0 - Refactored Architecture
 
 The v2 version (`Youtube_Transcribe.py`) features:
@@ -296,6 +305,67 @@ You can override any configuration setting using environment variables:
    ```bash
    YTD_BASE_DELAY=3 YTD_MAX_WORKERS=2 python Youtube_Transcribe.py https://youtube.com/c/channel1 --transcript en
    ```
+
+## Archive & Resume Functionaliteit
+
+> **Nieuwe feature in v2.1** - Lost het probleem op van rate limiting onderbrekingen bij grote kanaal downloads!
+
+### Wat is Archive Functionaliteit?
+
+De archive functionaliteit houdt automatisch bij welke videos al succesvol gedownload zijn, zodat het script kan hervatten waar het gebleven was na rate limiting of onderbrekingen.
+
+### Hoe het werkt
+
+1. **Per kanaal archive bestand**: `.transcript_archive.txt` in elke kanaal directory
+2. **Automatisch hervatten**: Slaat al verwerkte videos over bij volgende runs
+3. **API rate limit besparing**: Geen onnodige YouTube Transcript API calls
+4. **Backward compatible**: Werkt met bestaande installs
+
+### Voorbeeld Workflow
+
+```bash
+# Eerste run - grote kanaal met 100 videos
+uv run python Youtube_Transcribe.py https://youtube.com/@BigChannel -en
+# Downloadt eerste 40 videos, raakt rate limit
+
+# Volgende dag - hervat automatisch
+uv run python Youtube_Transcribe.py https://youtube.com/@BigChannel -en
+# Slaat eerste 40 over, downloadt videos 41-80
+# Archive bestand toont: 80 verwerkte videos
+```
+
+### Archive Bestand Formaat
+
+```
+downloads/BigChannel/.transcript_archive.txt
+├── V5IhsHEHXOg  # Video ID 1
+├── dQw4w9WgXcQ  # Video ID 2
+└── ...          # Alle verwerkte videos
+```
+
+### Configuratie
+
+Archive is standaard **ingeschakeld**. Uitschakelen in `config.toml`:
+
+```toml
+[transcripts]
+enable_archive = false  # Archive uitschakelen (niet aanbevolen)
+```
+
+### Voordelen
+
+- ✅ **Geen verloren werk** bij rate limiting
+- ✅ **Bespaart API calls** - verlengt YouTube Transcript API quota
+- ✅ **Snellere hervatting** - slaat verwerkte videos direct over
+- ✅ **Veilig** - archive bestanden zijn eenvoudig tekst en herstelbaar
+- ✅ **Per kanaal** - verschillende kanalen verstoren elkaar niet
+
+### Troubleshooting Archive
+
+- **Archive bestand ontbreekt?** Script maakt het automatisch aan
+- **Archive bestand corrupt?** Verwijder het bestand - script begint opnieuw
+- **Wil archive resetten?** Verwijder `.transcript_archive.txt` uit kanaal directory
+- **Archive niet gebruiken?** Stel `enable_archive = false` in config
 
 ## Rate Limiting
 
