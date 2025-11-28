@@ -12,25 +12,15 @@
 
 This version includes various improvements and extensions over the original project. You're welcome to contribute to make it even better!
 
-### Version 2.1 - Archive & Resume (Latest)
+### 📋 What's New
+See **[CHANGELOG.md](CHANGELOG.md)** for detailed version history and feature updates.
 
-The v2.1 version includes all v2.0 features plus:
-
-- **Archive & Resume**: Automatically resume interrupted downloads after rate limiting
-- **API Rate Limit Optimization**: No wasted API calls on already processed videos
-- **Per-Channel Archive Files**: Safe parallel processing of multiple channels
-- **Smart Detection**: Automatically skips processed videos on subsequent runs
-
-### Version 2.0 - Refactored Architecture
-
-The v2 version (`Youtube_Transcribe.py`) features:
-
-- **SOLID Principles**: Clean, maintainable code architecture
-- **TOML Configuration**: User-friendly configuration file (`config.toml`)
-- **Class-Based Design**: Modular components for better testing and extension
-- **Enhanced Rate Limiting**: Multiple strategies and better ban recovery
-- **Improved Error Handling**: More robust error management
-- **Flexible Configuration**: Override settings via environment variables
+### Key Features (v2.2)
+- ✅ **Archive & Resume**: Automatic recovery from rate limiting interruptions
+- ✅ **Advanced Filename Sanitization**: Optional WordPress-style filename cleaning
+- ✅ **Smart Language Detection**: Only when needed, respects explicit language choices
+- ✅ **TOML Configuration**: User-friendly configuration management
+- ✅ **Rate Limit Optimization**: No wasted API calls
 
 ## 🚀 Future Ideas
 
