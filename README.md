@@ -200,6 +200,7 @@ uv run python Youtube_Transcribe.py [options] <channel_or_video_url(s)>
 - `-all`               Download all available languages for each video
 - `-txt`               Download only TXT files (no JSON)
 - `-json`              Download only JSON files (no TXT)
+- `--advanced-filename-sanitize`  Use WordPress-style advanced filename sanitization
 - `-h, --help`         Show help message
 
 ## Audio/Video Format Selection

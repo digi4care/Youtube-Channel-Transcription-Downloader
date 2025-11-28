@@ -143,6 +143,7 @@ class TranscriptOptions:
     organize_existing: bool = True
     timestamp_prefix_format: str = ""
     overwrite_existing: bool = False
+    advanced_filename_sanitize: bool = False  # Use WordPress-style filename sanitization
 
     # Archive functionality
     enable_archive: bool = True  # Enable/disable archive-based resume functionality
@@ -330,6 +331,9 @@ class DownloadConfig:
 
         if hasattr(args, 'organize_existing') and not args.organize_existing:
             self.transcripts.organize_existing = args.organize_existing
+
+        if hasattr(args, 'advanced_filename_sanitize') and args.advanced_filename_sanitize:
+            self.transcripts.advanced_filename_sanitize = args.advanced_filename_sanitize
 
         # Standard flags
         if hasattr(args, 'txt') and args.txt:
@@ -846,7 +850,7 @@ class FileManager:
         results = {"saved_files": [], "skipped_files": []}
 
         # Sanitize video title
-        safe_title = re.sub(r'[\\/*?:"<>|]', "_", video_info["title"])
+        safe_title = sanitize_filename(video_info["title"], self.config.transcripts.advanced_filename_sanitize)
 
         # Add timestamp prefix if configured
         timestamp_prefix = ""
@@ -1471,7 +1475,8 @@ class ConfigManager:
                         "max_videos_per_channel": 0,
                         "organize_existing": True,
                         "timestamp_prefix_format": "",
-                        "overwrite_existing": False
+                        "overwrite_existing": False,
+                        "advanced_filename_sanitize": False
                     },
                     "rate_limiting": {
                         "base_delay": 1.5,
@@ -1643,6 +1648,8 @@ def parse_arguments() -> argparse.Namespace:
                        help="Overwrite existing transcript files")
     parser.add_argument("--no-organize", action="store_true",
                        help="Disable file organization")
+    parser.add_argument("--advanced-filename-sanitize", action="store_true",
+                       help="Use WordPress-style advanced filename sanitization")
 
     # Standard flags
     parser.add_argument("-t", "--transcript", dest="languages", action="append",
@@ -1715,6 +1722,77 @@ def sanitize_folder_name(name: str) -> str:
     if not sanitized:
         sanitized = "Untitled"
     return sanitized
+
+
+def sanitize_filename(filename: str, advanced_mode: bool = False) -> str:
+    """Sanitize filename for filesystem use
+
+    Args:
+        filename: Original filename
+        advanced_mode: Use WordPress-style advanced sanitization if True
+
+    Returns:
+        Sanitized filename safe for filesystem use
+    """
+    if not advanced_mode:
+        # Basic mode: only replace filesystem-dangerous characters
+        return re.sub(r'[\\/*?:"<>|]', '_', filename)
+
+    # Advanced mode: WordPress-style sanitization
+    filename_raw = filename
+
+    # Remove accents (simplified version - no external unicodedata needed)
+    # Basic accent removal for common characters
+    accents = {
+        'à': 'a', 'á': 'a', 'â': 'a', 'ã': 'a', 'ä': 'a', 'å': 'a',
+        'è': 'e', 'é': 'e', 'ê': 'e', 'ë': 'e',
+        'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i',
+        'ò': 'o', 'ó': 'o', 'ô': 'o', 'õ': 'o', 'ö': 'o',
+        'ù': 'u', 'ú': 'u', 'û': 'u', 'ü': 'u',
+        'ý': 'y', 'ÿ': 'y',
+        'ñ': 'n', 'ç': 'c'
+    }
+    for accented, plain in accents.items():
+        filename = filename.replace(accented, plain)
+        filename = filename.replace(accented.upper(), plain.upper())
+
+    # Special characters to remove (WordPress style)
+    special_chars = ['?', '[', ']', '/', '\\', '=', '<', '>', ':', ';', ',',
+                     "'", '"', '&', '$', '#', '*', '(', ')', '|', '~', '`', '!',
+                     '{', '}', '%', '+', '’', '«', '»', '”', '“', chr(0)]
+
+    filename = ''.join(c for c in filename if c not in special_chars)
+
+    # Replace spaces and other chars with dashes
+    filename = re.sub(r'[\s\t\r\n]+', '-', filename)
+    filename = re.sub(r'[-]+', '-', filename)  # Multiple dashes to single
+
+    # Remove multiple dots
+    filename = re.sub(r'\.{2,}', '.', filename)
+
+    # Trim dangerous characters from start/end
+    filename = filename.strip('.-_')
+
+    # Handle files without extension
+    if '.' not in filename and filename:
+        # For files without extension, add a default if it looks like a known type
+        # This is simplified - WordPress checks MIME types
+        filename = f"{filename}.txt" if not filename.endswith('.txt') else filename
+
+    # Ensure not empty
+    if not filename:
+        filename = "unnamed-file.txt"
+
+    # Limit length
+    if len(filename) > 200:
+        name_part, ext_part = filename.rsplit('.', 1) if '.' in filename else (filename, '')
+        if ext_part:
+            max_name_len = 200 - len(ext_part) - 1  # -1 for dot
+            filename = f"{name_part[:max_name_len]}.{ext_part}"
+        else:
+            filename = filename[:200]
+
+    return filename
 
 
 def main():

@@ -898,7 +898,7 @@ Predefined aliases for convenience and ease of use. Note that future
     -t sleep                        --sleep-subtitles 5 --sleep-requests 0.75
                                     --sleep-interval 10 --max-sleep-interval 20
 
-# CONFIGURATION
+## CONFIGURATION
 
 You can configure yt-dlp by placing any supported command line option in a configuration file. The configuration is loaded from the following locations:
 
@@ -1030,9 +1030,9 @@ The field names themselves (the part inside the parenthesis) can also have some 
 
 To summarize, the general syntax for a field is:
 
-```
-%(name[.keys][addition][>strf][,alternate][&replacement][|default])[flags][width][.precision][length]type
-```
+    ```text
+    %(name[.keys][addition][>strf][,alternate][&replacement][|default])[flags][width][.precision][length]type
+    ```
 
 Additionally, you can set different output templates for the various metadata files separately from the general output template by specifying the type of file followed by the template separated by a colon `:`. The different file types supported are `subtitle`, `thumbnail`, `description`, `annotation` (deprecated), `infojson`, `link`, `pl_thumbnail`, `pl_description`, `pl_infojson`, `chapter`, `pl_video`. E.g. `-o "%(title)s.%(ext)s" -o "thumbnail:%(title)s\%(title)s.%(ext)s"` will put the thumbnails in a folder with the same name as the video. If any of the templates is empty, that type of file will not be written. E.g. `--write-thumbnail -o "thumbnail:"` will write thumbnails only for playlists and not for video.
 
