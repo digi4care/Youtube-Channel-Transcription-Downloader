@@ -898,7 +898,7 @@ Predefined aliases for convenience and ease of use. Note that future
     -t sleep                        --sleep-subtitles 5 --sleep-requests 0.75
                                     --sleep-interval 10 --max-sleep-interval 20
 
-## CONFIGURATION
+# CONFIGURATION
 
 You can configure yt-dlp by placing any supported command line option in a configuration file. The configuration is loaded from the following locations:
 
@@ -930,21 +930,21 @@ You can configure yt-dlp by placing any supported command line option in a confi
 
 E.g. with the following configuration file, yt-dlp will always extract the audio, copy the mtime, use a proxy and save all videos under `YouTube` directory in your home directory:
 
-    ```text
-    # Lines starting with # are comments
+```
+# Lines starting with # are comments
 
-    # Always extract audio
-    -x
+# Always extract audio
+-x
 
-    # Copy the mtime
-    --mtime
+# Copy the mtime
+--mtime
 
-    # Use this proxy
-    --proxy 127.0.0.1:3128
+# Use this proxy
+--proxy 127.0.0.1:3128
 
-    # Save all videos under YouTube directory in your home directory
-    -o ~/YouTube/%(title)s.%(ext)s
-    ```
+# Save all videos under YouTube directory in your home directory
+-o ~/YouTube/%(title)s.%(ext)s
+```
 
 **Note**: Options in a configuration file are just the same options aka switches used in regular command line calls; thus there **must be no whitespace** after `-` or `--`, e.g. `-o` or `--proxy` but not `- o` or `-- proxy`. They must also be quoted when necessary, as if it were a UNIX shell.
 
@@ -960,23 +960,23 @@ If you want your file to be decoded differently, add `# coding: ENCODING` to the
 
 You may also want to configure automatic credentials storage for extractors that support authentication (by providing login and password with `--username` and `--password`) in order not to pass credentials as command line arguments on every yt-dlp execution and prevent tracking plain text passwords in the shell command history. You can achieve this using a [`.netrc` file](https://stackoverflow.com/tags/.netrc/info) on a per-extractor basis. For that, you will need to create a `.netrc` file in `--netrc-location` and restrict permissions to read/write by only you:
 
-    ```text
-    touch ${HOME}/.netrc
-    chmod a-rwx,u+rw ${HOME}/.netrc
-    ```
+```
+touch ${HOME}/.netrc
+chmod a-rwx,u+rw ${HOME}/.netrc
+```
 
-    After that, you can add credentials for an extractor in the following format, where *extractor* is the name of the extractor in lowercase:
+After that, you can add credentials for an extractor in the following format, where *extractor* is the name of the extractor in lowercase:
 
-    ```text
-    machine <extractor> login <username> password <password>
-    ```
+```
+machine <extractor> login <username> password <password>
+```
 
-    E.g.
+E.g.
 
-    ```text
-    machine youtube login myaccount@gmail.com password my_youtube_password
-    machine twitch login my_twitch_account_name password my_twitch_password
-    ```
+```
+machine youtube login myaccount@gmail.com password my_youtube_password
+machine twitch login my_twitch_account_name password my_twitch_password
+```
 
 To activate authentication with the `.netrc` file you should pass `--netrc` to yt-dlp or place it in the [configuration file](#configuration).
 
@@ -986,9 +986,9 @@ As an alternative to using the `.netrc` file, which has the disadvantage of keep
 
 E.g. To use an encrypted `.netrc` file stored as `.authinfo.gpg`
 
-    ```text
-    yt-dlp --netrc-cmd 'gpg --decrypt ~/.authinfo.gpg' 'https://www.youtube.com/watch?v=BaW_jenozKc'
-    ```
+```
+yt-dlp --netrc-cmd 'gpg --decrypt ~/.authinfo.gpg' 'https://www.youtube.com/watch?v=BaW_jenozKc'
+```
 
 ### Notes about environment variables
 
@@ -998,7 +998,7 @@ E.g. To use an encrypted `.netrc` file stored as `.authinfo.gpg`
 * On Windows, `~` points to `${HOME}` if present; or, `${USERPROFILE}` or `${HOMEDRIVE}${HOMEPATH}` otherwise
 * On Windows, `${USERPROFILE}` generally points to `C:\Users\<user name>` and `${APPDATA}` to `${USERPROFILE}\AppData\Roaming`
 
-## OUTPUT TEMPLATE
+# OUTPUT TEMPLATE
 
 The `-o` option is used to indicate a template for the output file names while `-P` option is used to specify the path each type of file should be saved to.
 
@@ -1030,9 +1030,9 @@ The field names themselves (the part inside the parenthesis) can also have some 
 
 To summarize, the general syntax for a field is:
 
-    ```text
-    %(name[.keys][addition][>strf][,alternate][&replacement][|default])[flags][width][.precision][length]type
-    ```
+```
+%(name[.keys][addition][>strf][,alternate][&replacement][|default])[flags][width][.precision][length]type
+```
 
 Additionally, you can set different output templates for the various metadata files separately from the general output template by specifying the type of file followed by the template separated by a colon `:`. The different file types supported are `subtitle`, `thumbnail`, `description`, `annotation` (deprecated), `infojson`, `link`, `pl_thumbnail`, `pl_description`, `pl_infojson`, `chapter`, `pl_video`. E.g. `-o "%(title)s.%(ext)s" -o "thumbnail:%(title)s\%(title)s.%(ext)s"` will put the thumbnails in a folder with the same name as the video. If any of the templates is empty, that type of file will not be written. E.g. `--write-thumbnail -o "thumbnail:"` will write thumbnails only for playlists and not for video.
 
@@ -1114,7 +1114,7 @@ The available fields are:
 All the fields in [Filtering Formats](#filtering-formats) can also be used
 
 Available for the video that belongs to some logical chapter or section:
- 
+
 * `chapter` (string): Name or title of the chapter the video belongs to
 * `chapter_number` (numeric): Number of the chapter the video belongs to
 * `chapter_id` (string): Id of the chapter the video belongs to
@@ -1988,7 +1988,7 @@ with yt_dlp.YoutubeDL(ydl_opts) as ydl:
     ydl.download(URLS)
 ```
 
-## CHANGES FROM YOUTUBE-DL
+# CHANGES FROM YOUTUBE-DL
 
 ### New features
 

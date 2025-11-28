@@ -14,7 +14,7 @@ This version includes various improvements and extensions over the original proj
 
 ### Version 2.0 - Refactored Architecture
 
-The v2 version (`Youtube.Transcribe.py`) features:
+The v2 version (`Youtube_Transcribe.py`) features:
 
 - **SOLID Principles**: Clean, maintainable code architecture
 - **TOML Configuration**: User-friendly configuration file (`config.toml`)
@@ -87,10 +87,10 @@ All requirements are listed in `pyproject.toml` and `requirements.txt`.
 
    ```bash
    # Create configuration
-   python Youtube.Transcribe.py --create-config
-   
+   python Youtube_Transcribe.py --create-config
+
    # Download transcripts
-   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en
+   python Youtube_Transcribe.py https://youtube.com/c/channel1 --transcript en
    ```
 
 ### Option 2: Using pip (Traditional)
@@ -123,8 +123,8 @@ All requirements are listed in `pyproject.toml` and `requirements.txt`.
 4. **Run the application**
 
    ```bash
-   python Youtube.Transcribe.py --create-config
-   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en
+   python Youtube_Transcribe.py --create-config
+   python Youtube_Transcribe.py https://youtube.com/c/channel1 --transcript en
    ```
 
 ## Quick Start
@@ -134,7 +134,7 @@ Get up and running in 3 simple steps:
 1. **Create default configuration**:
 
    ```bash
-   python Youtube.Transcribe.py --create-config
+   python Youtube_Transcribe.py --create-config
    ```
 
 2. **Edit `config.toml`** to customize settings like rate limiting, output formats, etc.
@@ -142,13 +142,13 @@ Get up and running in 3 simple steps:
 3. **Run with your preferred configuration**:
 
    ```bash
-   python Youtube.Transcribe.py https://youtube.com/c/channel1 -en
+   python Youtube_Transcribe.py https://youtube.com/c/channel1 --transcript en
    ```
 
 ## Usage
 
 ```bash
-uv run python Youtube.Transcribe.py [options] <channel_or_video_url(s)>
+uv run python Youtube_Transcribe.py [options] <channel_or_video_url(s)>
 ```
 
 ## Examples
@@ -156,51 +156,116 @@ uv run python Youtube.Transcribe.py [options] <channel_or_video_url(s)>
 - **Download transcript for a single YouTube video**
 
   ```bash
-  uv run python Youtube.Transcribe.py https://www.youtube.com/watch?v=dQw4w9WgXcQ -en
+  uv run python Youtube_Transcribe.py https://www.youtube.com/watch?v=dQw4w9WgXcQ --transcript en
   ```
 
 - **Download English transcripts from a channel**
 
   ```bash
-  uv run python Youtube.Transcribe.py https://www.youtube.com/channel/UC-lHJZR3Gqxm24_Vd_AJ5Yw -en
+  uv run python Youtube_Transcribe.py https://www.youtube.com/channel/UC-lHJZR3Gqxm24_Vd_AJ5Yw --transcript en
   ```
 
 - **Download multiple languages**
 
   ```bash
-  uv run python Youtube.Transcribe.py https://youtube.com/c/channel1 -en -es -fr
+  uv run python Youtube_Transcribe.py https://youtube.com/c/channel1 --transcript en --transcript es --transcript fr
   ```
 
 - **Download all available languages**
 
   ```bash
-  uv run python Youtube.Transcribe.py https://youtube.com/c/channel1 -all
-  ```
-
-- **Download from channels listed in a file**
-
-  ```bash
-  uv run python Youtube.Transcribe.py -f channels.lst -en
+  uv run python Youtube_Transcribe.py https://youtube.com/c/channel1 -all
   ```
 
 - **Create configuration file**
 
   ```bash
-  uv run python Youtube.Transcribe.py --create-config
+  uv run python Youtube_Transcribe.py --create-config
   ```
 
 ## Options
 
-- `-f, --file FILE`    Read channel URLs from a text file (one per line or comma-separated)
 - `--create-config`    Create default config.toml file
 - `--show-config`      Show current configuration
-- `-LANG`              Language code for transcripts (e.g., `-en` for English). Multiple language codes can be specified (e.g., `-en -es -fr`)
+- `-t LANG, --transcript LANG`  Language code for transcripts. Can be repeated for multiple languages (e.g., `-t en -t es -t fr`)
 - `-all`               Download all available languages for each video
 - `-txt`               Download only TXT files (no JSON)
 - `-json`              Download only JSON files (no TXT)
-- `-delay N`           Delay between API requests in seconds (default: 1.5). Higher values reduce risk of IP bans but slow downloads
-- `-workers N`         Number of concurrent downloads (default: 3, range: 1-10). Lower values reduce risk of IP bans but slow downloads
 - `-h, --help`         Show help message
+
+## Audio/Video Format Selection
+
+The script supports all yt-dlp format options, allowing you to download audio-only, video-only, or custom format combinations.
+
+### Audio-Only Downloads
+
+Download only audio (perfect for music playlists or podcasts):
+
+```bash
+# Best available audio quality
+uv run python Youtube_Transcribe.py <URL> --format "bestaudio/best" --transcript en
+
+# Extract and convert to MP3 (requires ffmpeg)
+uv run python Youtube_Transcribe.py <URL> -x --audio-format mp3 --transcript en
+
+# Specific audio format
+uv run python Youtube_Transcribe.py <URL> --format "bestaudio[ext=m4a]" --transcript en
+
+# Audio with specific quality
+uv run python Youtube_Transcribe.py <URL> --format "ba[abr>=128]" --transcript en
+```
+
+### Video Downloads
+
+Download video with optional audio:
+
+```bash
+# Best video + audio
+uv run python Youtube_Transcribe.py <URL> --format "bestvideo+bestaudio/best" --transcript en
+
+# Video only (no audio)
+uv run python Youtube_Transcribe.py <URL> --format "bestvideo" --transcript en
+
+# Specific resolution
+uv run python Youtube_Transcribe.py <URL> --format "best[height<=1080]" --transcript en
+
+# Combine with transcript download
+uv run python Youtube_Transcribe.py <URL> --format "bestaudio" --transcript en
+```
+
+### Playlist-Specific Options
+
+```bash
+# Download only first 10 videos from playlist
+uv run python Youtube_Transcribe.py <PLAYLIST_URL> --format "bestaudio" -I 1:10 --transcript en
+
+# Download specific videos (1, 5, 10, 15)
+uv run python Youtube_Transcribe.py <PLAYLIST_URL> --format "bestaudio" -I 1,5,10,15 --transcript en
+```
+
+### Common Format Codes
+
+- `bestaudio/ba` - Best audio only
+- `bestvideo/bv` - Best video only
+- `best/b` - Best combined (video + audio)
+- `bestaudio[ext=m4a]` - M4A audio format
+- `best[height<=720]` - Max 720p video
+- `worst/w` - Lowest quality (not recommended)
+
+### Setting Default Format in config.toml
+
+```toml
+[yt_dlp.options]
+# Audio-only as default
+format = "bestaudio/best"
+skip_download = false  # Enable audio/video download
+
+# For transcripts only (default)
+# format = ""
+# skip_download = true
+```
+
+**Note:** Audio/video downloads require ffmpeg for format conversion and merging. Transcripts are downloaded separately regardless of video/audio settings.
 
 ## Configuration
 
@@ -210,8 +275,8 @@ The script uses a `config.toml` file for easy configuration management:
 
    ```bash
    # Create default config file
-   python Youtube.Transcribe.py --create-config
-   python Youtube.Transcribe.py --show-config
+   python Youtube_Transcribe.py --create-config
+   python Youtube_Transcribe.py --show-config
    ```
 
 ### Configuration Sections
@@ -229,7 +294,7 @@ The config file is organized into logical sections:
 You can override any configuration setting using environment variables:
 
    ```bash
-   YTD_DELAY=3 YTD_WORKERS=2 python Youtube.Transcribe.py https://youtube.com/c/channel1 -en
+   YTD_BASE_DELAY=3 YTD_MAX_WORKERS=2 python Youtube_Transcribe.py https://youtube.com/c/channel1 --transcript en
    ```
 
 ## Rate Limiting

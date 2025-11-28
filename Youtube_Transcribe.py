@@ -20,6 +20,7 @@ import signal
 import shutil
 import random
 import logging
+from datetime import datetime
 from dataclasses import dataclass, field
 from typing import List, Dict, Set, Tuple
 
@@ -40,110 +41,299 @@ colorama_init(autoreset=True)
 
 
 @dataclass
-class DownloadConfig:
-    """Configuration class containing all application settings"""
-    
-    # Rate limiting settings
+class YTDLPOptions:
+    """yt-dlp configuration options (passed directly to yt-dlp)"""
+
+    # Output template for video files
+    output: str = "%(title)s [%(id)s].%(ext)s"
+
+    # Video filtering
+    skip_download: bool = True
+    max_downloads: int = 0
+    playlist_items: str = ""
+
+    # Download options
+    concurrent_fragments: int = 1
+    sleep_interval: float = 0.0
+    max_sleep_interval: int = 20
+    retry_sleep: str = ""
+
+    # Format selection
+    format: str = ""
+    format_sort: str = ""
+
+    # Output options
+    restrict_filenames: bool = False
+    no_warnings: bool = False
+
+    # Logging
+    verbose: bool = False
+    quiet: bool = False
+
+    def to_yt_dlp_flags(self) -> List[str]:
+        """Convert options to yt-dlp command line flags"""
+        flags = []
+
+        if self.output and self.output != "%(title)s [%(id)s].%(ext)s":
+            flags.extend(["--output", self.output])
+
+        if self.skip_download:
+            flags.append("--skip-download")
+
+        if self.max_downloads > 0:
+            flags.extend(["--max-downloads", str(self.max_downloads)])
+
+        if self.playlist_items:
+            flags.extend(["--playlist-items", self.playlist_items])
+
+        if self.concurrent_fragments > 1:
+            flags.extend(["--concurrent-fragments", str(self.concurrent_fragments)])
+
+        if self.sleep_interval > 0:
+            flags.extend(["--sleep-interval", str(self.sleep_interval)])
+
+        if self.max_sleep_interval != 20:
+            flags.extend(["--max-sleep-interval", str(self.max_sleep_interval)])
+
+        if self.retry_sleep:
+            flags.extend(["--retry-sleep", self.retry_sleep])
+
+        if self.format:
+            flags.extend(["--format", self.format])
+
+        if self.format_sort:
+            flags.extend(["--format-sort", self.format_sort])
+
+        if self.restrict_filenames:
+            flags.append("--restrict-filenames")
+
+        if self.no_warnings:
+            flags.append("--no-warnings")
+
+        if self.verbose:
+            flags.append("--verbose")
+
+        if self.quiet:
+            flags.append("--quiet")
+
+        return flags
+
+
+@dataclass
+class TranscriptOptions:
+    """Transcript-specific configuration options"""
+
+    # Download settings
+    download_formats: List[str] = field(default_factory=lambda: ["txt", "json"])
+    use_language_folders: bool = True
+    sanitize_filenames: bool = True
+    output_dir: str = "./downloads"
+
+    # Language handling
+    default_language: str = "en"
+    auto_detect_language: bool = True
+    language_priority: List[str] = field(default_factory=lambda: ["en"])
+
+    # Batch processing
+    concurrent_workers: int = 1
+    batch_size: int = 100
+    max_videos_per_channel: int = 0
+
+    # File organization
+    organize_existing: bool = True
+    timestamp_prefix_format: str = ""
+    overwrite_existing: bool = False
+
+
+@dataclass
+class RateLimiting:
+    """Rate limiting for transcript API"""
+
     base_delay: float = 1.5
-    max_workers: int = 3
+    max_workers: int = 1
     max_retries: int = 3
     retry_backoff_factor: float = 2.0
     jitter_percentage: float = 0.2
-    ban_recovery_time: tuple = (300, 420)
-    
-    # File handling settings
-    output_dir: str = "./downloads"
-    use_language_folders: bool = True
-    download_formats: List[str] = field(default_factory=lambda: ["txt", "json"])
-    sanitize_filenames: bool = True
-    
-    # API settings
-    api_timeout: int = 600
-    batch_size: int = 100
-    max_videos_per_channel: int = 0
-    
-    # UI settings
-    show_progress: bool = True
-    clear_screen: bool = True
-    show_errors: bool = True
-    color_scheme: str = "default"
-    
-    # Advanced settings
-    enable_cache: bool = True
-    cache_dir: str = "./cache"
-    cache_expiry_hours: int = 24
-    log_level: str = "INFO"
-    log_file: str = ""
-    
-    # Rate limiting strategy
+    ban_recovery_time: Tuple[int, int] = (300, 420)
     rate_strategy: str = "balanced"
     strategy_multipliers: Dict[str, float] = field(default_factory=lambda: {
         "conservative": 3.0,
         "balanced": 1.0,
         "aggressive": 0.5
     })
-    
-    # Performance settings
-    memory_usage: str = "medium"
-    network_speed: str = "medium"
-    cpu_cores: int = 0
-    
-    @classmethod
-    def from_toml(cls, config_path: str = "config.toml") -> 'DownloadConfig':
-        """Load configuration from TOML file"""
-        try:
-            with open(config_path, 'r') as f:
-                config_data = toml.load(f)
-            
-            # Flatten nested TOML structure for dataclass
-            flattened = {}
-            for section, values in config_data.items():
-                if isinstance(values, dict):
-                    for key, value in values.items():
-                        # Skip the multipliers section - handle it separately
-                        if section == 'rate_limiting_strategies' and key == 'multipliers':
-                            continue
-                        flattened[key] = value
-                else:
-                    flattened[section] = values
-            
-            # Handle special nested structures
-            if 'rate_limiting_strategies' in config_data:
-                strategies = config_data['rate_limiting_strategies']
-                if 'strategy' in strategies:
-                    flattened['rate_strategy'] = strategies['strategy']
-                if 'multipliers' in strategies:
-                    flattened['strategy_multipliers'] = strategies['multipliers']
-            
-            # Remove the conflicting 'strategy' key if it exists
-            if 'strategy' in flattened:
-                del flattened['strategy']
-            
-            return cls(**flattened)
-        except FileNotFoundError:
-            logging.warning(f"Config file {config_path} not found, using defaults")
-            return cls()
-        except Exception as e:
-            logging.error(f"Error loading config: {e}, using defaults")
-            return cls()
-    
-    def apply_rate_strategy(self):
+
+    def apply_strategy(self):
         """Apply the selected rate limiting strategy"""
         multiplier = self.strategy_multipliers.get(self.rate_strategy, 1.0)
         self.base_delay *= multiplier
         self.max_workers = max(1, int(self.max_workers / multiplier))
-    
+
+
+@dataclass
+class APISettings:
+    """YouTube Transcript API settings"""
+
+    api_timeout: int = 600
+    enable_cache: bool = True
+    cache_dir: str = "./cache"
+    cache_expiry_hours: int = 24
+
+
+@dataclass
+class UISettings:
+    """UI and display settings"""
+
+    show_progress: bool = True
+    clear_screen: bool = True
+    show_errors: bool = True
+    color_scheme: str = "default"
+
+
+@dataclass
+class LoggingSettings:
+    """Logging configuration"""
+
+    level: str = "INFO"
+    file: str = ""
+    log_ytdlp_commands: bool = True
+    command_log_file: str = "ytdlp_commands.log"
+
+
+@dataclass
+class PerformanceSettings:
+    """Performance tuning"""
+
+    memory_usage: str = "medium"
+    network_speed: str = "medium"
+    cpu_cores: int = 0
+
+
+@dataclass
+class DownloadConfig:
+    """Complete configuration for YouTube Transcript Downloader"""
+
+    yt_dlp: YTDLPOptions = field(default_factory=YTDLPOptions)
+    transcripts: TranscriptOptions = field(default_factory=TranscriptOptions)
+    rate_limiting: RateLimiting = field(default_factory=RateLimiting)
+    api_settings: APISettings = field(default_factory=APISettings)
+    ui: UISettings = field(default_factory=UISettings)
+    logging: LoggingSettings = field(default_factory=LoggingSettings)
+    performance: PerformanceSettings = field(default_factory=PerformanceSettings)
+
+    def load_from_toml(self, config_path: str = "config.toml"):
+        """Load configuration from TOML file"""
+        try:
+            with open(config_path, 'r') as f:
+                config_data = toml.load(f)
+
+            # Load yt-dlp options
+            if 'yt_dlp' in config_data and 'options' in config_data['yt_dlp']:
+                for key, value in config_data['yt_dlp']['options'].items():
+                    if hasattr(self.yt_dlp, key):
+                        setattr(self.yt_dlp, key, value)
+
+            # Load transcript options
+            if 'transcripts' in config_data:
+                for key, value in config_data['transcripts'].items():
+                    if hasattr(self.transcripts, key):
+                        setattr(self.transcripts, key, value)
+
+            # Load rate limiting
+            if 'rate_limiting' in config_data:
+                for key, value in config_data['rate_limiting'].items():
+                    if key == 'ban_recovery_time' and isinstance(value, list):
+                        value = tuple(value)
+                    if hasattr(self.rate_limiting, key):
+                        setattr(self.rate_limiting, key, value)
+
+                # Handle strategy multipliers
+                if 'strategy_multipliers' in config_data['rate_limiting']:
+                    self.rate_limiting.strategy_multipliers = config_data['rate_limiting']['strategy_multipliers']
+
+            # Load API settings
+            if 'api_settings' in config_data or 'api' in config_data:
+                api_section = config_data.get('api_settings', config_data.get('api', {}))
+                for key, value in api_section.items():
+                    if hasattr(self.api_settings, key):
+                        setattr(self.api_settings, key, value)
+
+            # Load UI settings
+            if 'ui_settings' in config_data or 'ui' in config_data:
+                ui_section = config_data.get('ui_settings', config_data.get('ui', {}))
+                for key, value in ui_section.items():
+                    if hasattr(self.ui, key):
+                        setattr(self.ui, key, value)
+
+            # Load logging settings
+            if 'logging' in config_data:
+                for key, value in config_data['logging'].items():
+                    if hasattr(self.logging, key):
+                        setattr(self.logging, key, value)
+
+            # Load performance settings
+            if 'performance' in config_data:
+                for key, value in config_data['performance'].items():
+                    if hasattr(self.performance, key):
+                        setattr(self.performance, key, value)
+
+            # Apply rate limiting strategy
+            self.rate_limiting.apply_strategy()
+
+        except FileNotFoundError:
+            logging.warning(f"Config file {config_path} not found, using defaults")
+        except Exception as e:
+            logging.error(f"Error loading config: {e}, using defaults")
+
     def update_from_args(self, args: argparse.Namespace):
         """Update configuration from command line arguments"""
-        if hasattr(args, 'delay') and args.delay:
-            self.base_delay = args.delay
-        if hasattr(args, 'workers') and args.workers:
-            self.max_workers = args.workers
-        if hasattr(args, 'txt') and args.txt:
-            self.download_formats = ["txt"]
-        if hasattr(args, 'json') and args.json:
-            self.download_formats = ["json"]
 
+        # yt-dlp options
+        if hasattr(args, 'output_template') and args.output_template:
+            self.yt_dlp.output = args.output_template
+
+        if hasattr(args, 'skip_download') and args.skip_download:
+            self.yt_dlp.skip_download = args.skip_download
+
+        if hasattr(args, 'format') and args.format:
+            self.yt_dlp.format = args.format
+
+        if hasattr(args, 'format_sort') and args.format_sort:
+            self.yt_dlp.format_sort = args.format_sort
+
+        if hasattr(args, 'sleep_interval') and args.sleep_interval:
+            self.yt_dlp.sleep_interval = args.sleep_interval
+
+        if hasattr(args, 'verbose') and args.verbose:
+            self.yt_dlp.verbose = args.verbose
+
+        if hasattr(args, 'quiet') and args.quiet:
+            self.yt_dlp.quiet = args.quiet
+
+        # Transcript options
+        if hasattr(args, 'transcript_format') and args.transcript_format:
+            self.transcripts.download_formats = [args.transcript_format]
+
+        if hasattr(args, 'concurrent_workers') and args.concurrent_workers:
+            self.transcripts.concurrent_workers = args.concurrent_workers
+
+        if hasattr(args, 'batch_size') and args.batch_size:
+            self.transcripts.batch_size = args.batch_size
+
+        if hasattr(args, 'default_language') and args.default_language:
+            self.transcripts.default_language = args.default_language
+
+        if hasattr(args, 'overwrite_existing') and args.overwrite_existing:
+            self.transcripts.overwrite_existing = args.overwrite_existing
+
+        if hasattr(args, 'organize_existing') and not args.organize_existing:
+            self.transcripts.organize_existing = args.organize_existing
+
+        # Standard flags
+        if hasattr(args, 'txt') and args.txt:
+            self.transcripts.download_formats = ["txt"]
+
+        if hasattr(args, 'json') and args.json:
+            self.transcripts.download_formats = ["json"]
 
 class ColoredFormatter(logging.Formatter):
     """Custom formatter to add colors to log messages"""
@@ -171,29 +361,51 @@ class ColoredFormatter(logging.Formatter):
 
 class YouTubeAPIAdapter:
     """Handles all YouTube API operations (Single Responsibility Principle)"""
-    
+
     def __init__(self, config: DownloadConfig):
         self.config = config
         self.active_processes = []
-    
+
+    def _log_ytdlp_command(self, command: List[str], url: str, purpose: str = ""):
+        """Log yt-dlp command for debugging"""
+        if self.config.logging.log_ytdlp_commands:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cmd_str = " ".join(command)
+            log_entry = f"""
+[{timestamp}] Executing yt-dlp ({purpose}):
+  Command: {cmd_str}
+  URL: {url}
+========================================
+"""
+            with open(self.config.logging.command_log_file, "a") as f:
+                f.write(log_entry)
+
     def get_channel_name(self, channel_url: str) -> str:
         """Get channel name using yt-dlp"""
         logging.info("Retrieving channel name...")
-        
+
         spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
         spinner_idx = 0
         process = None
 
         try:
-            command = [
-                "yt-dlp",
-                "--skip-download",
+            # Build command using config
+            command = ["yt-dlp"]
+
+            # Add yt-dlp flags from config
+            command.extend(self.config.yt_dlp.to_yt_dlp_flags())
+
+            # Add channel name extraction
+            command.extend([
                 "--print",
                 "%(channel)s",
                 "--playlist-items",
                 "1",
                 channel_url,
-            ]
+            ])
+
+            # Log command
+            self._log_ytdlp_command(command, channel_url, "get channel name")
 
             logging.debug(f"Running command: {' '.join(command)}")
             process = subprocess.Popen(
@@ -243,13 +455,22 @@ class YouTubeAPIAdapter:
         print(f"{Fore.CYAN}Executing yt-dlp... (please wait){Style.RESET_ALL}")
 
         try:
-            command = [
-                "yt-dlp",
+            # Build command using config
+            command = ["yt-dlp"]
+
+            # Add yt-dlp flags from config
+            command.extend(self.config.yt_dlp.to_yt_dlp_flags())
+
+            # Add video extraction
+            command.extend([
                 "--flat-playlist",
                 "--print",
                 "%(id)s %(title)s",
                 channel_url,
-            ]
+            ])
+
+            # Log command
+            self._log_ytdlp_command(command, channel_url, "get videos list")
 
             logging.debug(f"Running command: {' '.join(command)}")
 
@@ -258,7 +479,7 @@ class YouTubeAPIAdapter:
             )
             self.active_processes.append(process)
 
-            stdout, stderr = process.communicate(timeout=self.config.api_timeout)
+            stdout, stderr = process.communicate(timeout=self.config.api_settings.api_timeout)
             self.active_processes.remove(process)
 
             if not stdout.strip():
@@ -268,8 +489,8 @@ class YouTubeAPIAdapter:
             videos_data = []
             lines = stdout.strip().split("\n")
 
-            if self.config.max_videos_per_channel > 0:
-                lines = lines[:self.config.max_videos_per_channel]
+            if self.config.transcripts.max_videos_per_channel > 0:
+                lines = lines[:self.config.transcripts.max_videos_per_channel]
 
             print(f"{Fore.GREEN}Found {len(lines)} videos. Processing...{Style.RESET_ALL}")
 
@@ -300,72 +521,176 @@ class YouTubeAPIAdapter:
             if stderr:
                 logging.error(f"Error output: {stderr}")
             return []
-    
-    def get_available_languages(self, video_id: str) -> List[str]:
-        """Get available transcript languages for a video"""
+
+    def get_playlists_from_channel(self, channel_url: str) -> List[Dict]:
+        """Get all playlists from a channel's playlists page"""
+        logging.info(f"Fetching playlists from: {Fore.CYAN}{channel_url}{Style.RESET_ALL}")
+
         try:
-            with tqdm(
-                total=1,
-                desc=f"{Fore.CYAN}Checking available languages{Style.RESET_ALL}",
-                bar_format="{desc}: {bar}| {elapsed}",
-                colour="cyan",
-            ) as pbar:
-                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-                languages = []
+            # Build command using config
+            command = ["yt-dlp"]
+            command.extend(self.config.yt_dlp.to_yt_dlp_flags())
 
-                for transcript in transcript_list:
-                    lang_code = transcript.language_code
-                    languages.append(lang_code)
+            command.extend([
+                "--print",
+                "%(playlist_autonumber)s\t%(playlist_title)s\t%(playlist_id)s",
+                channel_url,
+            ])
 
-                pbar.update(1)
-            return languages
+            self._log_ytdlp_command(command, channel_url, "get playlists list")
+
+            process = subprocess.Popen(
+                command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
+            self.active_processes.append(process)
+
+            stdout, stderr = process.communicate(timeout=self.config.api_settings.api_timeout)
+            self.active_processes.remove(process)
+
+            if not stdout.strip():
+                logging.error("No playlist data returned.")
+                return []
+
+            playlists = []
+            lines = stdout.strip().split("\n")
+
+            for line in lines:
+                if line:
+                    # Parse: playlist_autonumber<TAB>playlist_title<TAB>playlist_id
+                    # Use split('\t') to handle titles with spaces reliably
+                    parts = line.split('\t')
+
+                    if len(parts) >= 3:
+                        playlist_id = parts[2].strip()
+                        playlist_title = parts[1].strip()
+
+                        # Validate playlist_id (should be alphanumeric + some chars)
+                        if playlist_id and len(playlist_id) > 5:
+                            playlists.append({
+                                "id": playlist_id,
+                                "title": playlist_title
+                            })
+                            logging.debug(f"Parsed playlist: '{playlist_title}' -> ID: {playlist_id}")
+                        else:
+                            logging.warning(f"Invalid playlist ID: '{playlist_id}' from line: {line}")
+                    else:
+                        logging.warning(f"Couldn't parse playlist data from: {line}")
+
+            logging.info(
+                f"Total playlists found: {Fore.GREEN}{len(playlists)}{Style.RESET_ALL}"
+            )
+
+            # Remove duplicates based on playlist_id
+            seen_ids = set()
+            unique_playlists = []
+            for playlist in playlists:
+                if playlist["id"] not in seen_ids:
+                    seen_ids.add(playlist["id"])
+                    unique_playlists.append(playlist)
+
+            if len(unique_playlists) < len(playlists):
+                logging.warning(f"Removed {len(playlists) - len(unique_playlists)} duplicate playlists")
+
+            return unique_playlists
+
+        except subprocess.TimeoutExpired:
+            logging.error("Timeout while fetching playlists list.")
+            self._cleanup_process(process)
+            return []
+        except Exception as e:
+            logging.error(f"Error fetching playlists: {e}")
+            self._cleanup_process(process)
+            return []
+    
+    def get_available_languages_with_quality(self, video_id: str) -> List[Dict]:
+        """Get available transcript languages with quality scores"""
+        try:
+            transcript_list = YouTubeTranscriptApi().list(video_id)
+            transcripts = []
+
+            for transcript in transcript_list:
+                lang_code = transcript.language_code
+                is_manual = not transcript.is_generated
+                is_auto = transcript.is_generated
+
+                quality_score = 0
+                if is_manual:
+                    quality_score = 100
+                elif is_auto:
+                    quality_score = 50
+
+                transcripts.append({
+                    "language_code": lang_code,
+                    "quality_score": quality_score,
+                    "is_manual": is_manual,
+                    "is_auto": is_auto,
+                    "translation_languages": transcript.translation_languages if hasattr(transcript, 'translation_languages') else []
+                })
+
+            return transcripts
         except Exception as e:
             logging.error(f"Error getting available languages for video {video_id}: {e}")
             return []
-    
-    def download_transcript(self, video_id: str, language: str) -> Dict:
-        """Download a single transcript"""
-        try:
-            transcript = YouTubeTranscriptApi().fetch(video_id, languages=[language])
-            return {
-                "success": True,
-                "transcript": transcript.to_raw_data(),
-                "language": language
-            }
-        except _errors.NoTranscriptFound:
+
+    def download_transcript(self, video_id: str, requested_language: str) -> Dict:
+        """Download a single transcript with fallback logic"""
+        available_transcripts = self.get_available_languages_with_quality(video_id)
+
+        if not available_transcripts:
             return {
                 "success": False,
-                "error": "No transcript available",
+                "error": "No transcripts available for this video",
                 "retry": False
             }
-        except _errors.TranscriptsDisabled:
-            return {
-                "success": False,
-                "error": "Transcripts disabled for this video",
-                "retry": False
-            }
-        except _errors.VideoUnavailable:
-            return {
-                "success": False,
-                "error": "Video unavailable",
-                "retry": False
-            }
-        except _errors.RequestBlocked:
-            return {
-                "success": False,
-                "error": "Request blocked - possible rate limit",
-                "retry": True
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "retry": True
-            }
+
+        languages_to_try = [requested_language]
+
+        if requested_language not in [t["language_code"] for t in available_transcripts]:
+            if self.config.transcripts.language_priority:
+                for lang in self.config.transcripts.language_priority:
+                    if lang != requested_language and lang in [t["language_code"] for t in available_transcripts]:
+                        languages_to_try.append(lang)
+
+        languages_to_try.append("en")
+
+        for lang in languages_to_try:
+            for transcript_info in available_transcripts:
+                if transcript_info["language_code"] == lang:
+                    if transcript_info["quality_score"] >= 50:
+                        try:
+                            transcript = YouTubeTranscriptApi().fetch(video_id, languages=[lang])
+                            return {
+                                "success": True,
+                                "transcript": transcript.to_raw_data(),
+                                "language": lang,
+                                "quality_score": transcript_info["quality_score"],
+                                "is_manual": transcript_info["is_manual"],
+                                "fallback_used": lang != requested_language
+                            }
+                        except _errors.NoTranscriptFound:
+                            continue
+                        except _errors.RequestBlocked:
+                            return {
+                                "success": False,
+                                "error": "YouTube Transcript API rate limited - please wait a few minutes",
+                                "retry": True
+                            }
+                        except Exception as e:
+                            return {
+                                "success": False,
+                                "error": str(e),
+                                "retry": True
+                            }
+
+        return {
+            "success": False,
+            "error": f"No transcript available in requested language: {requested_language}",
+            "retry": False
+        }
     
     def _sanitize_filename(self, name: str) -> str:
         """Remove invalid characters from filenames"""
-        if self.config.sanitize_filenames:
+        if self.config.transcripts.sanitize_filenames:
             return re.sub(r'[\\/*?:"<>|]', "_", name)
         return name
     
@@ -508,25 +833,31 @@ class FileManager:
 
         logging.info(f"{Fore.GREEN}File reorganization complete{Style.RESET_ALL}")
     
-    def save_transcript(self, transcript_data: List[Dict], video_info: Dict, 
+    def save_transcript(self, transcript_data: List[Dict], video_info: Dict,
                        language: str, output_dir: str, use_language_folders: bool) -> Dict:
         """Save transcript to file(s)"""
         results = {"saved_files": [], "skipped_files": []}
-        
+
         # Sanitize video title
         safe_title = re.sub(r'[\\/*?:"<>|]', "_", video_info["title"])
-        
+
+        # Add timestamp prefix if configured
+        timestamp_prefix = ""
+        if self.config.transcripts.timestamp_prefix_format:
+            timestamp_prefix = datetime.now().strftime(self.config.transcripts.timestamp_prefix_format) + "_"
+
         # Determine file paths
         if use_language_folders:
             base_dir = os.path.join(output_dir, language)
         else:
             base_dir = output_dir
-        
+
         os.makedirs(base_dir, exist_ok=True)
-        
+
         # Save TXT format
-        if "txt" in self.config.download_formats:
-            txt_path = os.path.join(base_dir, f"{safe_title}_{language}.txt")
+        if "txt" in self.config.transcripts.download_formats:
+            txt_filename = f"{timestamp_prefix}{safe_title}_{language}.txt"
+            txt_path = os.path.join(base_dir, txt_filename)
             if os.path.exists(txt_path):
                 results["skipped_files"].append(txt_path)
             else:
@@ -537,16 +868,17 @@ class FileManager:
                     results["saved_files"].append(txt_path)
                 except Exception as e:
                     logging.error(f"Error saving TXT file: {e}")
-        
+
         # Save JSON format
-        if "json" in self.config.download_formats:
+        if "json" in self.config.transcripts.download_formats:
             if use_language_folders:
                 json_base_dir = os.path.join(base_dir, "json")
             else:
                 json_base_dir = os.path.join(output_dir, "json")
-            
+
             os.makedirs(json_base_dir, exist_ok=True)
-            json_path = os.path.join(json_base_dir, f"{safe_title}_{language}.json")
+            json_filename = f"{timestamp_prefix}{safe_title}_{language}.json"
+            json_path = os.path.join(json_base_dir, json_filename)
             
             if os.path.exists(json_path):
                 results["skipped_files"].append(json_path)
@@ -573,8 +905,8 @@ class RateLimiter:
     
     def apply_delay(self):
         """Apply controlled delay with jitter"""
-        jitter = self.config.base_delay * self.config.jitter_percentage * (random.random() * 2 - 1)
-        sleep_time = self.config.base_delay + jitter
+        jitter = self.config.rate_limiting.base_delay * self.config.rate_limiting.jitter_percentage * (random.random() * 2 - 1)
+        sleep_time = self.config.rate_limiting.base_delay + jitter
         time.sleep(sleep_time)
     
     def adjust_for_ban(self, current_delay: float, current_workers: int) -> Tuple[float, int]:
@@ -656,7 +988,7 @@ class ProgressReporter:
     
     def display_help(self):
         """Display help information"""
-        if self.config.show_progress:
+        if self.config.ui.show_progress:
             self.display_logo()
         
         print(f"{Fore.CYAN}=" * 80)
@@ -668,7 +1000,8 @@ class ProgressReporter:
         print("Files that already exist will be skipped, allowing you to resume or update channels.")
 
         print(f"\n{Fore.GREEN}USAGE:")
-        print("  python Youtube.Transcribe.v2.py [options] <channel_or_video_url(s)>")
+        print("  python Youtube_Transcribe.py [options] <channel_or_video_url(s)>")
+        print("  Or with uv: uv run python Youtube_Transcribe.py [options] <url(s)>")
 
         print(f"\n{Fore.GREEN}CONFIGURATION:")
         print("  --create-config     Create default config.toml file")
@@ -677,13 +1010,13 @@ class ProgressReporter:
 
         print(f"\n{Fore.GREEN}EXAMPLES:")
         print(f"{Fore.CYAN}  # Download transcript for a single YouTube video")
-        print("  python Youtube.Transcribe.v2.py https://www.youtube.com/watch?v=dQw4w9WgXcQ -en")
+        print("  uv run python Youtube_Transcribe.py https://www.youtube.com/watch?v=dQw4w9WgXcQ -en")
         print(f"{Fore.CYAN}  # Download English transcripts from a channel")
-        print("  python Youtube.Transcribe.v2.py https://www.youtube.com/channel/UC-lHJZR3Gqxm24_Vd_AJ5Yw -en")
+        print("  uv run python Youtube_Transcribe.py https://www.youtube.com/channel/UC-lHJZR3Gqxm24_Vd_AJ5Yw -en")
         print(f"{Fore.CYAN}  # Download multiple languages")
-        print("  python Youtube.Transcribe.v2.py https://youtube.com/c/channel1 -en -es -fr")
+        print("  uv run python Youtube_Transcribe.py https://youtube.com/c/channel1 -en -es -fr")
         print(f"{Fore.CYAN}  # Download all available languages")
-        print("  python Youtube.Transcribe.v2.py https://youtube.com/c/channel1 -all")
+        print("  uv run python Youtube_Transcribe.py https://youtube.com/c/channel1 -all")
 
         print(f"\n{Fore.GREEN}REQUIREMENTS:")
         print("  - python 3.6+")
@@ -751,13 +1084,13 @@ class YouTubeTranscriptDownloader:
         """Setup logging configuration"""
         handler = logging.StreamHandler()
         handler.setFormatter(ColoredFormatter("%(message)s"))
-        
+
         logger = logging.getLogger()
-        logger.setLevel(getattr(logging, self.config.log_level.upper()))
+        logger.setLevel(getattr(logging, self.config.logging.level.upper()))
         logger.addHandler(handler)
-        
-        if self.config.log_file:
-            file_handler = logging.FileHandler(self.config.log_file)
+
+        if self.config.logging.file:
+            file_handler = logging.FileHandler(self.config.logging.file)
             file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
             logger.addHandler(file_handler)
     
@@ -807,26 +1140,81 @@ class YouTubeTranscriptDownloader:
     def process_single_channel(self, channel_url: str, languages: List[str],
                               download_all: bool, formats: List[str]) -> Tuple[int, int, int]:
         """Process a single channel"""
+        # Check if this is a playlists URL
+        if "/playlists" in channel_url:
+            return self._process_playlists_url(channel_url, languages, download_all, formats)
+
         # Get channel name
         channel_name = self.youtube_api.get_channel_name(channel_url)
-        
+
         # Get video metadata
         videos_data = self.youtube_api.get_videos_from_channel(channel_url)
-        
+
         if not videos_data:
             logging.warning(f"No videos found for {channel_url}. Skipping channel.")
             return 0, 0, 0
-        
+
         # Download transcripts
-        return self.download_transcripts_batch(videos_data, languages, channel_name, 
+        return self.download_transcripts_batch(videos_data, languages, channel_name,
                                               download_all, formats)
+
+    def _process_playlists_url(self, channel_url: str, languages: List[str],
+                              download_all: bool, formats: List[str]) -> Tuple[int, int, int]:
+        """Process playlists URL - get all playlists and process each individually"""
+        logging.info(f"{Fore.YELLOW}Detected playlists URL - activating playlist mode{Style.RESET_ALL}")
+
+        # Get playlists from channel
+        playlists = self.youtube_api.get_playlists_from_channel(channel_url)
+
+        if not playlists:
+            logging.warning(f"No playlists found for {channel_url}")
+            return 0, 0, 0
+
+        # Get channel name
+        base_url = channel_url.replace("/playlists", "")
+        channel_name = self.youtube_api.get_channel_name(base_url)
+
+        total_downloaded = 0
+        total_skipped = 0
+        total_failed = 0
+
+        # Process each playlist individually
+        for i, playlist in enumerate(playlists):
+            playlist_id = playlist["id"]
+            playlist_title = sanitize_folder_name(playlist["title"])
+            playlist_url = f"https://www.youtube.com/playlist?list={playlist_id}"
+
+            print(f"\n{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}PLAYLIST {i + 1}/{len(playlists)}: {playlist_title}{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
+            logging.info(f"Processing playlist: {Fore.CYAN}{playlist_title}{Style.RESET_ALL}")
+
+            # Use folder structure: ChannelName/PlaylistName/
+            folder_name = playlist_title
+            videos_data = self.youtube_api.get_videos_from_channel(playlist_url)
+
+            if not videos_data:
+                logging.warning(f"No videos found in playlist '{playlist_title}'. Skipping.")
+                continue
+
+            # Download transcripts
+            downloaded, skipped, failed = self.download_transcripts_batch(
+                videos_data, languages, f"{channel_name}/{folder_name}",
+                download_all, formats
+            )
+
+            total_downloaded += downloaded
+            total_skipped += skipped
+            total_failed += failed
+
+        return total_downloaded, total_skipped, total_failed
     
     def download_transcripts_batch(self, videos: List[Dict], languages: List[str],
-                                  channel_name: str, download_all: bool, 
+                                  channel_name: str, download_all: bool,
                                   formats: List[str]) -> Tuple[int, int, int]:
         """Download transcripts in batches"""
         # Create output directory
-        output_dir = os.path.join(self.config.output_dir, channel_name)
+        output_dir = os.path.join(self.config.transcripts.output_dir, channel_name)
         os.makedirs(output_dir, exist_ok=True)
         
         # Detect existing languages
@@ -843,9 +1231,9 @@ class YouTubeTranscriptDownloader:
         # If downloading all languages, get available languages
         if download_all and videos:
             first_video = videos[0]["id"]
-            available_langs = self.youtube_api.get_available_languages(first_video)
-            if available_langs:
-                languages = available_langs
+            available_transcripts = self.youtube_api.get_available_languages_with_quality(first_video)
+            if available_transcripts:
+                languages = [t["language_code"] for t in available_transcripts]
                 use_language_folders = True
                 self.file_manager.organize_files_by_language(output_dir, languages)
         
@@ -869,11 +1257,11 @@ class YouTubeTranscriptDownloader:
         )
         
         while remaining_tasks:
-            batch_size = min(len(remaining_tasks), self.config.batch_size)
+            batch_size = min(len(remaining_tasks), self.config.transcripts.batch_size)
             current_batch = remaining_tasks[:batch_size]
-            
+
             with concurrent.futures.ThreadPoolExecutor(
-                max_workers=self.config.max_workers
+                max_workers=self.config.rate_limiting.max_workers
             ) as executor:
                 future_to_task = {}
                 for video, lang in current_batch:
@@ -928,19 +1316,19 @@ class YouTubeTranscriptDownloader:
         """Download a single transcript with retry logic"""
         video_id = video["id"]
         
-        for attempt in range(self.config.max_retries):
+        for attempt in range(self.config.rate_limiting.max_retries):
             # Apply rate limiting
             self.rate_limiter.apply_delay()
-            
+
             # Download transcript
             result = self.youtube_api.download_transcript(video_id, language)
-            
+
             if result["success"]:
                 # Save to file
                 save_result = self.file_manager.save_transcript(
                     result["transcript"], video, language, output_dir, use_language_folders
                 )
-                
+
                 if save_result["saved_files"]:
                     title_display = video["title"][:40] + "..." if len(video["title"]) > 40 else video["title"]
                     print(f"[{Fore.GREEN}OK{Style.RESET_ALL}  ] {title_display} ({language})")
@@ -954,14 +1342,14 @@ class YouTubeTranscriptDownloader:
                 return {"success": False, "skipped": False}
             else:
                 # Retryable error
-                if attempt < self.config.max_retries - 1:
-                    sleep_time = self.config.base_delay * (self.config.retry_backoff_factor ** attempt)
+                if attempt < self.config.rate_limiting.max_retries - 1:
+                    sleep_time = self.config.rate_limiting.base_delay * (self.config.rate_limiting.retry_backoff_factor ** attempt)
                     time.sleep(sleep_time)
                 else:
                     title_display = video["title"][:40] + "..." if len(video["title"]) > 40 else video["title"]
                     print(f"[{Fore.RED}FAIL{Style.RESET_ALL}] {title_display} ({language}) - {result['error']}")
                     return {"success": False, "skipped": False}
-        
+
         return {"success": False, "skipped": False}
 
 
@@ -970,51 +1358,78 @@ class ConfigManager:
     
     @staticmethod
     def create_default_config(config_path: str = "config.toml"):
-        """Create a default configuration file"""
-        config = DownloadConfig()
+        """Create a default configuration file with new structure"""
         try:
             with open(config_path, 'w') as f:
                 toml.dump({
-                    "rate_limiting": {
-                        "base_delay": config.base_delay,
-                        "max_workers": config.max_workers,
-                        "max_retries": config.max_retries,
-                        "retry_backoff_factor": config.retry_backoff_factor,
-                        "jitter_percentage": config.jitter_percentage,
-                        "ban_recovery_time": list(config.ban_recovery_time)
+                    "yt_dlp": {
+                        "options": {
+                            "output": "%(title)s [%(id)s].%(ext)s",
+                            "skip_download": True,
+                            "max_downloads": 0,
+                            "playlist_items": "",
+                            "concurrent_fragments": 1,
+                            "sleep_interval": 0.0,
+                            "max_sleep_interval": 20,
+                            "retry_sleep": "",
+                            "format": "",
+                            "format_sort": "",
+                            "restrict_filenames": False,
+                            "no_warnings": False,
+                            "verbose": False,
+                            "quiet": False
+                        }
                     },
-                    "file_handling": {
-                        "output_dir": config.output_dir,
-                        "use_language_folders": config.use_language_folders,
-                        "download_formats": config.download_formats,
-                        "sanitize_filenames": config.sanitize_filenames
+                    "transcripts": {
+                        "download_formats": ["txt", "json"],
+                        "use_language_folders": True,
+                        "sanitize_filenames": True,
+                        "default_language": "en",
+                        "auto_detect_language": True,
+                        "language_priority": ["en"],
+                        "concurrent_workers": 1,
+                        "batch_size": 100,
+                        "max_videos_per_channel": 0,
+                        "organize_existing": True,
+                        "timestamp_prefix_format": "",
+                        "overwrite_existing": False
+                    },
+                    "rate_limiting": {
+                        "base_delay": 1.5,
+                        "max_workers": 1,
+                        "max_retries": 3,
+                        "retry_backoff_factor": 2.0,
+                        "jitter_percentage": 0.2,
+                        "ban_recovery_time": [300, 420],
+                        "rate_strategy": "balanced",
+                        "strategy_multipliers": {
+                            "conservative": 3.0,
+                            "balanced": 1.0,
+                            "aggressive": 0.5
+                        }
                     },
                     "api_settings": {
-                        "api_timeout": config.api_timeout,
-                        "batch_size": config.batch_size,
-                        "max_videos_per_channel": config.max_videos_per_channel
+                        "api_timeout": 600,
+                        "enable_cache": True,
+                        "cache_dir": "./cache",
+                        "cache_expiry_hours": 24
                     },
-                    "ui_settings": {
-                        "show_progress": config.show_progress,
-                        "clear_screen": config.clear_screen,
-                        "show_errors": config.show_errors,
-                        "color_scheme": config.color_scheme
+                    "ui": {
+                        "show_progress": True,
+                        "clear_screen": True,
+                        "show_errors": True,
+                        "color_scheme": "default"
                     },
-                    "advanced": {
-                        "enable_cache": config.enable_cache,
-                        "cache_dir": config.cache_dir,
-                        "cache_expiry_hours": config.cache_expiry_hours,
-                        "log_level": config.log_level,
-                        "log_file": config.log_file
-                    },
-                    "rate_limiting_strategies": {
-                        "strategy": config.rate_strategy,
-                        "multipliers": config.strategy_multipliers
+                    "logging": {
+                        "level": "INFO",
+                        "file": "",
+                        "log_ytdlp_commands": True,
+                        "command_log_file": "ytdlp_commands.log"
                     },
                     "performance": {
-                        "memory_usage": config.memory_usage,
-                        "network_speed": config.network_speed,
-                        "cpu_cores": config.cpu_cores
+                        "memory_usage": "medium",
+                        "network_speed": "medium",
+                        "cpu_cores": 0
                     }
                 }, f)
             print(f"Created default configuration file: {config_path}")
@@ -1027,55 +1442,135 @@ class ConfigManager:
         print("\n" + "="*60)
         print("CURRENT CONFIGURATION")
         print("="*60)
-        print(f"Rate Limiting: {config.base_delay}s delay, {config.max_workers} workers")
-        print(f"Strategy: {config.rate_strategy}")
-        print(f"Output: {config.output_dir}")
-        print(f"Formats: {', '.join(config.download_formats)}")
-        print(f"Language folders: {config.use_language_folders}")
-        print(f"Log level: {config.log_level}")
+
+        print(f"\n{Fore.YELLOW}yt-dlp Options:{Style.RESET_ALL}")
+        print(f"  Output template: {config.yt_dlp.output}")
+        print(f"  Skip download: {config.yt_dlp.skip_download}")
+        if config.yt_dlp.format:
+            print(f"  Format: {config.yt_dlp.format}")
+        if config.yt_dlp.sleep_interval > 0:
+            print(f"  Sleep interval: {config.yt_dlp.sleep_interval}s")
+
+        print(f"\n{Fore.YELLOW}Transcript Options:{Style.RESET_ALL}")
+        print(f"  Formats: {', '.join(config.transcripts.download_formats)}")
+        print(f"  Default language: {config.transcripts.default_language}")
+        print(f"  Auto-detect language: {config.transcripts.auto_detect_language}")
+        print(f"  Concurrent workers: {config.transcripts.concurrent_workers}")
+        print(f"  Batch size: {config.transcripts.batch_size}")
+        print(f"  Use language folders: {config.transcripts.use_language_folders}")
+        print(f"  Organize existing: {config.transcripts.organize_existing}")
+
+        print(f"\n{Fore.YELLOW}Rate Limiting:{Style.RESET_ALL}")
+        print(f"  Base delay: {config.rate_limiting.base_delay}s")
+        print(f"  Max workers: {config.rate_limiting.max_workers}")
+        print(f"  Strategy: {config.rate_limiting.rate_strategy}")
+
+        print(f"\n{Fore.YELLOW}API Settings:{Style.RESET_ALL}")
+        print(f"  API timeout: {config.api_settings.api_timeout}s")
+        print(f"  Cache enabled: {config.api_settings.enable_cache}")
+        if config.api_settings.enable_cache:
+            print(f"  Cache directory: {config.api_settings.cache_dir}")
+
+        print(f"\n{Fore.YELLOW}Logging:{Style.RESET_ALL}")
+        print(f"  Level: {config.logging.level}")
+        print(f"  Log file: {config.logging.file or '(console)'}")
+        print(f"  Log yt-dlp commands: {config.logging.log_ytdlp_commands}")
+        if config.logging.log_ytdlp_commands:
+            print(f"  Command log file: {config.logging.command_log_file}")
+
         print("="*60)
 
 
 def load_config_with_overrides(config_path: str = "config.toml") -> DownloadConfig:
-    """Load config from TOML, then override with environment variables"""
-    config = DownloadConfig.from_toml(config_path)
-    
+    """Load config with priority: CLI args > env vars > config.toml > defaults"""
+    config = DownloadConfig()
+
+    # Load from config.toml
+    config.load_from_toml(config_path)
+
     # Override with environment variables
     env_overrides = {
-        'YTD_DELAY': ('base_delay', float),
-        'YTD_WORKERS': ('max_workers', int),
-        'YTD_OUTPUT_DIR': ('output_dir', str),
-        'YTD_LOG_LEVEL': ('log_level', str),
-        'YTD_RATE_STRATEGY': ('rate_strategy', str),
+        # yt-dlp options
+        'YTD_OUTPUT': ('yt_dlp.output', str),
+        'YTD_SKIP_DOWNLOAD': ('yt_dlp.skip_download', lambda x: x.lower() == 'true'),
+        'YTD_SLEEP_INTERVAL': ('yt_dlp.sleep_interval', float),
+
+        # Transcript options
+        'YTD_CONCURRENT_WORKERS': ('transcripts.concurrent_workers', int),
+        'YTD_BATCH_SIZE': ('transcripts.batch_size', int),
+        'YTD_DEFAULT_LANGUAGE': ('transcripts.default_language', str),
+
+        # Rate limiting
+        'YTD_BASE_DELAY': ('rate_limiting.base_delay', float),
+        'YTD_MAX_WORKERS': ('rate_limiting.max_workers', int),
+        'YTD_RATE_STRATEGY': ('rate_limiting.rate_strategy', str),
+
+        # Logging
+        'YTD_LOG_LEVEL': ('logging.level', str),
+        'YTD_LOG_FILE': ('logging.file', str),
+        'YTD_LOG_YTDLP_COMMANDS': ('logging.log_ytdlp_commands', lambda x: x.lower() == 'true'),
     }
-    
-    for env_var, (config_key, type_func) in env_overrides.items():
+
+    for env_var, (config_path, type_func) in env_overrides.items():
         if env_var in os.environ:
             try:
                 value = type_func(os.environ[env_var])
-                setattr(config, config_key, value)
-                logging.info(f"Overridden {config_key} from environment: {value}")
-            except (ValueError, TypeError) as e:
+                # Navigate to nested attribute
+                parts = config_path.split('.')
+                obj = config
+                for part in parts[:-1]:
+                    obj = getattr(obj, part)
+                setattr(obj, parts[-1], value)
+                logging.info(f"Overridden {config_path} from environment: {value}")
+            except (ValueError, TypeError, AttributeError) as e:
                 logging.warning(f"Invalid {env_var} value: {e}")
-    
+
+    # Re-apply rate limiting strategy after env var overrides
+    config.rate_limiting.apply_strategy()
+
     return config
 
 
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(
-        description="YouTube Channel Transcript Downloader v2.0", 
+        description="YouTube Channel Transcript Downloader v2.0 - yt-dlp + transcript orchestration",
         add_help=False
     )
-    parser.add_argument("-f", "--file", help="File containing channel URLs")
+
+    # Application flags
     parser.add_argument("-h", "--help", action="store_true", help="Show help message")
-    parser.add_argument("--create-config", action="store_true", help="Create default config file")
+    parser.add_argument("--create-config", action="store_true", help="Create default config.toml file")
     parser.add_argument("--show-config", action="store_true", help="Show current configuration")
+
+    # yt-dlp flags (passthrough)
+    parser.add_argument("--output-template", help="Override yt-dlp output template")
+    parser.add_argument("--skip-download", action="store_true", help="Skip video download (transcripts only)")
+    parser.add_argument("--format", help="Video format selector for yt-dlp")
+    parser.add_argument("--format-sort", help="Format sort order for yt-dlp")
+    parser.add_argument("--sleep-interval", type=float, help="Seconds to sleep between requests (yt-dlp)")
+    parser.add_argument("--verbose", action="store_true", help="Verbose yt-dlp output")
+    parser.add_argument("--quiet", action="store_true", help="Quiet yt-dlp output")
+
+    # Transcript-specific flags
+    parser.add_argument("--transcript-format", choices=["txt", "json", "srt", "vtt"],
+                       help="Transcript format to download")
+    parser.add_argument("--concurrent-workers", type=int,
+                       help="Number of concurrent transcript downloads")
+    parser.add_argument("--batch-size", type=int,
+                       help="Number of videos to process per batch")
+    parser.add_argument("--default-language", help="Default transcript language code")
+    parser.add_argument("--overwrite-existing", action="store_true",
+                       help="Overwrite existing transcript files")
+    parser.add_argument("--no-organize", action="store_true",
+                       help="Disable file organization")
+
+    # Standard flags
+    parser.add_argument("-t", "--transcript", dest="languages", action="append",
+                       help="Transcript language code (can be repeated)")
     parser.add_argument("-all", action="store_true", help="Download all available languages")
-    parser.add_argument("-txt", action="store_true", help="Download only TXT files")
-    parser.add_argument("-json", action="store_true", help="Download only JSON files")
-    parser.add_argument("-delay", type=float, help="Delay between API requests in seconds")
-    parser.add_argument("-workers", type=int, help="Number of concurrent downloads")
+    parser.add_argument("-txt", action="store_true", help="Download only TXT format")
+    parser.add_argument("-json", action="store_true", help="Download only JSON format")
 
     # Parse known args first
     args, remaining = parser.parse_known_args()
@@ -1083,23 +1578,11 @@ def parse_arguments() -> argparse.Namespace:
     if args.help or len(sys.argv) <= 1:
         return args
 
-    # Parse URLs and languages from remaining args
+    # Parse URLs from remaining args
     args.urls = []
-    args.languages = []
 
     for arg in remaining:
-        if arg.startswith("-"):
-            if arg.startswith("-delay") or arg.startswith("-workers"):
-                continue
-            elif arg == "-all":
-                args.all = True
-            elif arg == "-txt":
-                args.txt = True
-            elif arg == "-json":
-                args.json = True
-            else:
-                args.languages.append(arg[1:])
-        elif arg.startswith(("http://", "https://", "www.")):
+        if arg.startswith(("http://", "https://", "www.")):
             args.urls.append(arg)
 
     return args
@@ -1138,103 +1621,107 @@ def get_system_language() -> str:
     return "en"
 
 
+def sanitize_folder_name(name: str) -> str:
+    """Sanitize folder name for filesystem use"""
+    # Remove or replace invalid characters
+    sanitized = re.sub(r'[<>:"/\\|?*]', '_', name)
+    # Remove control characters
+    sanitized = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', sanitized)
+    # Remove leading/trailing dots and spaces
+    sanitized = sanitized.strip('. ')
+    # Truncate to reasonable length
+    if len(sanitized) > 200:
+        sanitized = sanitized[:200]
+    # Ensure not empty
+    if not sanitized:
+        sanitized = "Untitled"
+    return sanitized
+
+
 def main():
     """Main entry point"""
     # Parse arguments
     args = parse_arguments()
-    
+
     # Handle config commands
     if args.create_config:
         ConfigManager.create_default_config()
         return
-    
+
     if args.show_config:
         config = load_config_with_overrides()
         ConfigManager.show_current_config(config)
         return
-    
-    # Load configuration
+
+    # Load configuration with priority: CLI > env > config.toml > defaults
     config = load_config_with_overrides()
-    
-    # Update config from CLI args
+
+    # Update config from CLI args (highest priority)
     config.update_from_args(args)
-    
-    # Apply rate limiting strategy
-    config.apply_rate_strategy()
-    
+
     # Clear screen if configured
-    if config.clear_screen:
+    if config.ui.clear_screen:
         os.system("cls" if os.name == "nt" else "clear")
-    
+
     # Initialize downloader
     downloader = YouTubeTranscriptDownloader(config)
-    
+
     # Show help if requested
     if args.help or len(sys.argv) <= 1:
         downloader.progress_reporter.display_help()
         return
-    
-    # Parse URLs from file if specified
+
+    # Get URLs from command line
     urls = []
-    if args.file:
-        if not os.path.exists(args.file):
-            logging.error(f"File not found: {args.file}")
-            sys.exit(1)
-        
-        try:
-            with open(args.file, "r", encoding="utf-8") as f:
-                content = f.read().replace(",", "\n")
-                file_urls = [url.strip() for url in content.split("\n") if url.strip()]
-                urls.extend(file_urls)
-        except Exception as e:
-            logging.error(f"Error reading file {args.file}: {str(e)}")
-            sys.exit(1)
-    
-    # Add URLs from command line
     if hasattr(args, 'urls') and args.urls:
         urls.extend(args.urls)
-    
+
     # Ensure we have URLs
     if not urls:
         logging.error("No channel URLs provided. Use -h for help.")
         sys.exit(1)
-    
+
     # Get languages
     languages = []
     if hasattr(args, 'languages') and args.languages:
         languages = args.languages
     elif not args.all:
-        languages = [get_system_language()]
-    
+        # Auto-detect system language or use default
+        if config.transcripts.auto_detect_language:
+            detected_lang = get_system_language()
+            languages = [detected_lang]
+            logging.info(f"Auto-detected language: {Fore.CYAN}{detected_lang}{Style.RESET_ALL}")
+        else:
+            languages = [config.transcripts.default_language]
+
     # Get formats
-    formats = config.download_formats
-    if args.txt:
-        formats = ["txt"]
-    elif args.json:
-        formats = ["json"]
-    
+    formats = config.transcripts.download_formats
+
     # Display session configuration
     print(f"{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
     print(f"{Fore.YELLOW}SESSION CONFIGURATION{Style.RESET_ALL}")
     print(f"{Fore.CYAN}{'=' * 80}{Style.RESET_ALL}")
-    
+
     if args.all:
         logging.info(
-            f"Processing {Fore.CYAN}{len(urls)}{Style.RESET_ALL} channels with {Fore.GREEN}ALL available languages{Style.RESET_ALL}"
+            f"Processing {Fore.CYAN}{len(urls)}{Style.RESET_ALL} URLs with {Fore.GREEN}ALL available languages{Style.RESET_ALL}"
         )
     else:
         logging.info(
-            f"Processing {Fore.CYAN}{len(urls)}{Style.RESET_ALL} channels with languages: {Fore.CYAN}{', '.join(languages)}{Style.RESET_ALL}"
+            f"Processing {Fore.CYAN}{len(urls)}{Style.RESET_ALL} URLs with languages: {Fore.CYAN}{', '.join(languages)}{Style.RESET_ALL}"
         )
-    
+
     logging.info(
-        f"File types to download: {Fore.CYAN}{', '.join(formats)}{Style.RESET_ALL}"
+        f"Transcript formats: {Fore.CYAN}{', '.join(formats)}{Style.RESET_ALL}"
     )
     logging.info(
-        f"Rate limiting: {Fore.YELLOW}{config.base_delay}s{Style.RESET_ALL} delay, {Fore.YELLOW}{config.max_workers}{Style.RESET_ALL} workers"
+        f"Rate limiting: {Fore.YELLOW}{config.rate_limiting.base_delay}s{Style.RESET_ALL} delay, {Fore.YELLOW}{config.rate_limiting.max_workers}{Style.RESET_ALL} workers"
+    )
+    logging.info(
+        f"yt-dlp output template: {Fore.CYAN}{config.yt_dlp.output}{Style.RESET_ALL}"
     )
     print(f"{Fore.CYAN}{'-' * 80}{Style.RESET_ALL}")
-    
+
     # Process channels
     try:
         results = downloader.process_channels(urls, languages, args.all, formats)
