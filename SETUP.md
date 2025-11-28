@@ -87,7 +87,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Run the application
+### Running the Application with pip
 
 ```bash
 python Youtube_Transcribe.py --create-config
